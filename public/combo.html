@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Sign Up</title>
+    <link rel="stylesheet" href="login.css">
+    <style></style>
+</head>
+<body>
+    <div class="wrap" role="main">
+        <div class="panel left" aria-hidden="false">
+            <div>
+                <div class="brand" id="brand">ACQUA</div>
+                <h1 id="h1">Welcome</h1>
+                <p class="lead" id="lead">Sign in to access the app or register a new account.</p>
+            </div>
+        </div>
+    <div class="container">
+        <!-- Login Form -->
+    
+        <div id="loginForm" class="form-container active">
+            <h2>Login</h2>
+            <form> 
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                        
+                <button type="submit" id="loginSubmit">Login</button>
+                
+
+                <div class="remeber-forgot">
+                    <label>
+                        <input type="checkbox" name="remeber" > Remember me
+                    </label>
+                    <a href="#">Forgot Password?</a>
+                </div>
+            </form>
+            <div class="toggle-link" onclick="toggleForms('signupForm')">
+    Don't have an account? Sign Up
+</div>
+        </div>
+        
+        <!-- Sign Up Form -->
+        <div id="signupForm" class="form-container">
+            <h2>Sign Up</h2>
+            <form>
+                <div class="form-group">
+                    <label for="signupName">Full Name</label>
+                    <input type="text" id="signupName" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" required>
+                </div>
+                
+                <button type="submit" id="SignUpSubmit">Sign Up</button>
+            </form>
+            <div class="toggle-link" onclick="toggleForms('loginForm')">
+    Already have an account? Login
+</div>
+        </div>
+    </div>
+    
+    <script src="login.js">
+    </script>
+</body>
+</html>

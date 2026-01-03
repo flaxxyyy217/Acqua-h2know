@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="hompage.css"/>
+</head>
+<body>
+<div class="privacy-overlay" id="privacyOverlay">
+  <div class="privacy-popup">
+    <div class="privacy-header">
+      <div class="privacy-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>
+      </div>
+      <h2>Data Privacy Notice</h2>
+      <p>Philippines Data Privacy Act of 2012 (RA 10173)</p>
+    </div>
+
+    <div class="privacy-content">
+      <h3>Your Privacy Matters</h3>
+      <p>
+        ACQUA (H2KN0W) is committed to protecting your personal information in compliance with 
+        the Data Privacy Act of 2012 (Republic Act No. 10173) and its Implementing Rules and Regulations.
+      </p>
+
+      <h3>Information We Collect</h3>
+      <p>When you use ACQUA, we collect and process the following personal information:</p>
+      <ul>
+        <li>Full name</li>
+        <li>Email address</li>
+        <li>Hydration test results and history</li>
+        <li>Account credentials (encrypted)</li>
+        <li>Usage data and preferences</li>
+      </ul>
+
+      <h3>How We Use Your Information</h3>
+      <ul>
+        <li>Provide hydration monitoring services</li>
+        <li>Create and manage your account</li>
+        <li>Send reminders and notifications</li>
+        <li>Improve our services and user experience</li>
+        <li>Comply with legal obligations</li>
+      </ul>
+
+      <h3>Your Rights</h3>
+      <p>Under the Data Privacy Act, you have the right to:</p>
+      <ul>
+        <li>Access your personal data</li>
+        <li>Correct inaccurate or incomplete data</li>
+        <li>Request deletion of your data</li>
+        <li>Object to data processing</li>
+        <li>Request data portability</li>
+      </ul>
+
+      <div class="privacy-highlight">
+        <p>
+          <strong>🔐 Security:</strong> We use industry-standard encryption and security measures 
+          to protect your personal information. Your password is encrypted using bcrypt, and we 
+          never store sensitive data in plain text.
+        </p>
+      </div>
+
+      <h3>Data Sharing</h3>
+      <p>
+        We do NOT sell, trade, or share your personal information with third parties. 
+        Your data is stored securely and used solely for the purposes stated above.
+      </p>
+
+      <h3>Contact Us</h3>
+      <p>
+        For privacy concerns or to exercise your rights, please contact our Data Protection Officer at:
+        <br><strong>Email:</strong> privacy@h2know.com
+      </p>
+    </div>
+
+    <div class="privacy-footer">
+      <div class="privacy-checkbox">
+        <input type="checkbox" id="privacyAccept" />
+        <label for="privacyAccept">
+          I have read and agree to the Data Privacy Notice and Terms of Service
+        </label>
+      </div>
+      <div class="privacy-buttons">
+        <button class="btn-accept" id="acceptBtn">Accept & Continue</button>
+        <button class="btn-decline" id="declineBtn">Decline</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <h1 id="myH1">ACQUA</h1>
+<div class="h-content">
+<!--dropdown-->
+<div class="navbar">
+<div class="dropdown">
+        <button class="dropdown-button">Menu</button>
+        <div class="dropdown-content">
+            <a href="reminders.html">Reminders</a>
+            <a href="notification.html">Notification</a>
+            <a href="badges.html">Badges</a>
+            <a href="Manual.html">Manual</a>
+            <a href="combo.html" id="logout">Log Out</a>
+        </div>
+    </div>
+</div>
+</header>
+<!--THIS IS THE MAIN CONTENT-->
+
+<div class="container">
+        <div class="icon-container">
+            <div class="icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                </svg>
+            </div>
+        </div>
+        
+        <h1>Welcome to ACQUA</h1>
+        <p class="subtitle">Smart Hydration Monitoring Technology</p>
+        
+        <div class="content">
+            <div class="card">
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                </div>
+                <h3>Real-Time Analysis</h3>
+                <p>ACQUA is an innovative hydration assessment platform designed to help individuals better understand their body's hydration status. By analyzing a urine sample through an <span class="highlight">Arduino-based sensing system</span>, ACQUA translates physical data into meaningful hydration insights that are securely transmitted and displayed on this website.</p>
+            </div>
+            
+            <div class="card">
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <path d="M9 3v18M3 9h18M3 15h18"/>
+                    </svg>
+                </div>
+                <h3>Advanced Technology</h3>
+                <p>Our system leverages <span class="highlight">sensor technology and data processing</span> to evaluate hydration indicators from the sample, providing users with an accessible, technology-driven approach to hydration monitoring. ACQUA aims to support awareness, prevention, and smarter daily health decisions through simple, non-invasive analysis.</p>
+            </div>
+            
+            <div class="card">
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                        <line x1="12" y1="22.08" x2="12" y2="12"/>
+                    </svg>
+                </div>
+                <h3>Seamless Integration</h3>
+                <p>Explore how ACQUA connects <span class="highlight">hardware and digital intelligence</span> to transform hydration monitoring into a practical and user-friendly experience. Our platform bridges the gap between physical sensors and actionable health insights.</p>
+            </div>
+        </div>
+    </div>
+
+<script src="script.js"></script>
+</body>
+</html>
