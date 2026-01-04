@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="adminn.css">
+  <link rel="stylesheet" href="hompage.css">
+</head>
+<body>
+  <header>
+    <h1 id="myH1">ACQUA - Admin</h1>
+    <div class="h-content">
+      <div class="navbar">
+        <div class="dropdown">
+          <button class="dropdown-button">Menu</button>
+          <div class="dropdown-content">
+            <a href="homepage.html">Home</a>
+            <a href="reminders.html">Reminders</a>
+            <a href="notification.html">Testing</a>
+            <a href="badges.html">Badges</a>
+            <a href="Manual.html">Manual</a>
+            <a href="admin.html">Admin Dashboard</a>
+            <a href="#" id="logout">Log Out</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="admin-container">
+    <!-- Statistics -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon">👥</div>
+          <div class="stat-info">
+            <h3>Total Users</h3>
+          </div>
+        </div>
+        <div class="stat-value" id="totalUsers">-</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon">🔬</div>
+          <div class="stat-info">
+            <h3>Total Tests</h3>
+          </div>
+        </div>
+        <div class="stat-value" id="totalTests">-</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon">💧</div>
+          <div class="stat-info">
+            <h3>Avg. Hydration</h3>
+          </div>
+        </div>
+        <div class="stat-value" id="avgHydration">-</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon">📅</div>
+          <div class="stat-info">
+            <h3>New Users (7d)</h3>
+          </div>
+        </div>
+        <div class="stat-value" id="newUsers">-</div>
+      </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="admin-card">
+      <div class="admin-header">
+        <h2>📊 User Management</h2>
+        <div class="export-buttons">
+          <button class="export-btn refresh" onclick="loadUsers()">
+            🔄 Refresh
+          </button>
+          <button class="export-btn" onclick="exportCSV()">
+            📄 Export CSV
+          </button>
+          <button class="export-btn json" onclick="exportJSON()">
+            📦 Export JSON
+          </button>
+        </div>
+      </div>
+
+      <div class="search-bar">
+        <input 
+          type="text" 
+          class="search-input" 
+          id="searchInput" 
+          placeholder="🔍 Search by name or email..."
+        >
+      </div>
+
+      <div id="tableContainer">
+        <div class="loading">📊 Loading users...</div>
+      </div>
+    </div>
+  </div>
+<script src="admin.js"></script>
+</body>
+</html>

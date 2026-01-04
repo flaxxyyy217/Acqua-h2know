@@ -261,6 +261,152 @@ app.get('/api/user', authenticateToken, async (req, res) => {
   }
 });
 
+// Admin Dashboard Route (Protected)
+app.get('/admin', authenticateToken, async (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// Get all users with their data (Admin API)
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+  try {
+    // Get all users without passwords
+    const users = await User.find().select('-password').lean();
+    
+    // Add placeholder for hydration results
+    const usersWithResults = users.map(user => ({
+      ...user,
+      hydrationResults: [] // Will be populated when you add hydration tracking
+    }));
+
+    res.json({ 
+      success: true, 
+      users: usersWithResults,
+      count: users.length
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching users' 
+    });
+  }
+});
+
+// Export users to CSV
+app.get('/api/admin/export/csv', authenticateToken, async (req, res) => {
+  try {
+    const users = await User.find().select('-password').lean();
+    
+    // CSV Headers
+    let csv = 'Full Name,Email,Account Created,Last Login,Total Tests,Last Test Result,Hydration Status\n';
+    
+    // Add user data
+    users.forEach(user => {
+      const createdDate = new Date(user.createdAt).toLocaleDateString();
+      csv += `"${user.fullName}","${user.email}","${createdDate}","N/A","0","N/A","N/A"\n`;
+    });
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=acqua_users_' + Date.now() + '.csv');
+    res.send(csv);
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ success: false, message: 'Export failed' });
+  }
+});
+
+// Export users to JSON
+app.get('/api/admin/export/json', authenticateToken, async (req, res) => {
+  try {
+    const users = await User.find().select('-password').lean();
+    
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      totalUsers: users.length,
+      users: users.map(user => ({
+        fullName: user.fullName,
+        email: user.email,
+        accountCreated: user.createdAt,
+        totalTests: 0,
+        lastTestResult: 'N/A',
+        hydrationStatus: 'N/A',
+        testHistory: []
+      }))
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename=acqua_users_' + Date.now() + '.json');
+    res.json(exportData);
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ success: false, message: 'Export failed' });
+  }
+});
+
+const hydrationTestSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  testDate: {
+    type: Date,
+    default: Date.now
+  },
+  hydrationLevel: {
+    type: String,
+    enum: ['Well Hydrated', 'Slightly Dehydrated', 'Dehydrated', 'Severely Dehydrated'],
+    required: true
+  },
+  sensorReading: {
+    type: Number,
+    required: true
+  },
+  notes: String
+});
+
+const HydrationTest = mongoose.model('HydrationTest', hydrationTestSchema);
+
+// API to add hydration test (for Arduino integration)
+app.post('/api/hydration/test', authenticateToken, async (req, res) => {
+  try {
+    const { hydrationLevel, sensorReading, notes } = req.body;
+
+    const newTest = new HydrationTest({
+      userId: req.user.id,
+      hydrationLevel,
+      sensorReading,
+      notes
+    });
+
+    await newTest.save();
+
+    res.json({
+      success: true,
+      message: 'Test recorded successfully',
+      test: newTest
+    });
+  } catch (error) {
+    console.error('Error saving test:', error);
+    res.status(500).json({ success: false, message: 'Failed to save test' });
+  }
+});
+
+// Get user's hydration history
+app.get('/api/hydration/history', authenticateToken, async (req, res) => {
+  try {
+    const tests = await HydrationTest.find({ userId: req.user.id })
+      .sort({ testDate: -1 })
+      .limit(50);
+
+    res.json({ success: true, tests });
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch history' });
+  }
+});
+
 // 404 Handler
 app.use((req, res) => {
   res.status(404).send('Page not found');
