@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="hompage.css">
+  <link rel="stylesheet" href="testing.css">
+</head>
+<body>
+  <header>
+  <h1 id="myH1">H2KN0W</h1>
+<div class="h-content">
+<!--dropdown-->
+<div class="navbar">
+<div class="dropdown">
+        <button class="dropdown-button">Menu</button>
+        <div class="dropdown-content">
+            <a href="reminders.html">Reminders</a>
+            <a href="Testing.html">Testing</a>
+            <a href="badges.html">Badges</a>
+            <a href="Manual.html">Manual</a>
+            <a href="homepage.html">Home</a>
+            <a href="combo.html" id="logout">Log Out</a>
+        </div>
+    </div>
+</div>
+</header>
+<!--THIS IS THE MAIN CONTENT-->
+
+ <div class="container">
+    <div class="title-section">
+      <h1>HYDRATION TESTING</h1>
+      <p>Analyze your urine data to check your hydration level</p>
+    </div>
+
+    <div class="dashboard-grid">
+      <!-- Bluetooth Connection Card -->
+      <div class="card">
+        <h2>📱 Arduino Device</h2>
+        <div class="connection-status">
+          <div class="status-indicator" id="statusIndicator">
+            <div class="status-dot disconnected"></div>
+            <span id="statusText">Disconnected</span>
+          </div>
+        </div>
+        <button class="btn-test" id="connectBtn" onclick="connectBluetooth()">Connect Device</button>
+        
+        <div class="device-data" id="deviceData" style="display: none;">
+          <h3>📊 Current Reading</h3>
+          <div class="data-row">
+            <span class="data-label">Urine Color:</span>
+            <span class="data-value" id="colorValue">--</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Frequency:</span>
+            <span class="data-value" id="frequencyValue">--</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Volume:</span>
+            <span class="data-value" id="volumeValue">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hydration Meter Card -->
+      <div class="card">
+        <h2>💧 Hydration Level</h2>
+        <div class="hydration-meter">
+          <div class="meter-labels">
+            <span>Dehydrated</span>
+            <span>Normal</span>
+            <span>Hydrated</span>
+          </div>
+          <div class="meter-bar">
+            <div class="meter-indicator" id="indicator"></div>
+          </div>
+          <div class="meter-zones">
+            <span>Critical</span>
+            <span>Low</span>
+            <span>Optimal</span>
+            <span>Good</span>
+            <span>Excellent</span>
+          </div>
+        </div>
+        
+        <div class="result-display" id="result">
+          <h3 id="statusTitle">Your Status</h3>
+          <p id="statusMessage"></p>
+        </div>
+      </div>
+
+      <!-- Chart Card -->
+      <div class="card full-width">
+        <h2>📈 Hydration History</h2>
+        <div class="chart-container">
+          <canvas id="hydrationChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="testing.js"></script>
+</body>
+</html>

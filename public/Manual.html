@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
   <link rel="stylesheet" href="hompage.css">
+  <link rel="stylesheet" href="manual.css">
 </head>
 <body>
   <header>
-  <h1 id="myH1">H2KN0W</h1>
+  <h1 id="myH1">ACQUA</h1>
 <div class="h-content">
 <!--dropdown-->
 <div class="navbar">
@@ -16,9 +17,10 @@
         <button class="dropdown-button">Menu</button>
         <div class="dropdown-content">
             <a href="reminders.html">Reminders</a>
-            <a href="notification.html">Notification</a>
+            <a href="Testing.html">Testing</a>
             <a href="badges.html">Badges</a>
             <a href="Manual.html">Manual</a>
+            <a href="homepage.html">Home</a>
             <a href="combo.html" id="logout">Log Out</a>
         </div>
     </div>
@@ -26,10 +28,304 @@
 </header>
 <!--THIS IS THE MAIN CONTENT-->
 
-<div class="Fstbox">
-  <div class="intro">
-    <H1>MANUAL</H1>
+<div class="manual-container">
+    <div class="manual-card">
+      <div class="manual-header">
+        <h1>📖 User Manual</h1>
+        <p>Everything you need to know about using ACQUA</p>
+      </div>
+
+      <!-- Getting Started -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🚀</div>
+          <h2>Getting Started</h2>
+        </div>
+        
+        <p>Welcome to ACQUA - your personal hydration monitoring system! This guide will help you understand how to use all the features of our platform.</p>
+
+        <h3>What is ACQUA?</h3>
+        <p>ACQUA is an innovative hydration assessment platform that combines Arduino-based hardware sensors with a web interface to help you monitor and maintain optimal hydration levels throughout the day.</p>
+
+        <div class="feature-grid">
+          <div class="feature-item">
+            <h4>💧 Real-Time Monitoring</h4>
+            <p>Analyze your hydration status through urine sample testing</p>
+          </div>
+          <div class="feature-item">
+            <h4>🔔 Smart Reminders</h4>
+            <p>Get timely notifications to drink water</p>
+          </div>
+          <div class="feature-item">
+            <h4>🏆 Achievements</h4>
+            <p>Earn badges for maintaining good habits</p>
+          </div>
+          <div class="feature-item">
+            <h4>📊 History Tracking</h4>
+            <p>View your hydration patterns over time</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account Setup -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">👤</div>
+          <h2>Account Setup</h2>
+        </div>
+
+        <h3>Creating Your Account</h3>
+        <ol class="step-list">
+          <li><span class="step-number">1</span>Visit the ACQUA login page</li>
+          <li><span class="step-number">2</span>Click "Don't have an account? Sign Up"</li>
+          <li><span class="step-number">3</span>Enter your full name, email, and create a strong password (min. 6 characters)</li>
+          <li><span class="step-number">4</span>Click "Sign Up" to create your account</li>
+          <li><span class="step-number">5</span>You'll be automatically logged in and redirected to the homepage</li>
+        </ol>
+
+        <h3>Logging In</h3>
+        <ol class="step-list">
+          <li><span class="step-number">1</span>Enter your registered email address</li>
+          <li><span class="step-number">2</span>Enter your password</li>
+          <li><span class="step-number">3</span>Optional: Check "Remember me" to stay logged in</li>
+          <li><span class="step-number">4</span>Click "Login"</li>
+        </ol>
+
+        <div class="tip-box">
+          <h4>💡 Tip: Forgot Your Password?</h4>
+          <p>Click "Forgot Password?" on the login page to receive a password reset link via email.</p>
+        </div>
+      </div>
+
+      <!-- Using the System -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🔬</div>
+          <h2>Using the Hydration Testing System</h2>
+        </div>
+
+        <h3>How to Test Your Hydration</h3>
+        <ol class="step-list">
+          <li><span class="step-number">1</span>Place a small urine sample in the provided testing container</li>
+          <li><span class="step-number">2</span>Insert the container into the ACQUA Arduino sensor device</li>
+          <li><span class="step-number">3</span>Wait 10-15 seconds for analysis</li>
+          <li><span class="step-number">4</span>Results will automatically sync to your account</li>
+          <li><span class="step-number">5</span>View your hydration status on the Testing page</li>
+        </ol>
+
+        <h3>Understanding Your Results</h3>
+        <p>Your hydration status will be classified into one of these categories:</p>
+        
+        <div class="feature-grid">
+          <div class="feature-item">
+            <h4>🟢 Well Hydrated</h4>
+            <p>Optimal hydration levels. Keep it up!</p>
+          </div>
+          <div class="feature-item">
+            <h4>🟡 Slightly Dehydrated</h4>
+            <p>Drink 1-2 glasses of water soon</p>
+          </div>
+          <div class="feature-item">
+            <h4>🟠 Dehydrated</h4>
+            <p>Drink water immediately - 2-3 glasses</p>
+          </div>
+          <div class="feature-item">
+            <h4>🔴 Severely Dehydrated</h4>
+            <p>Urgent! Drink water now and rest</p>
+          </div>
+        </div>
+
+        <div class="warning-box">
+          <h4>⚠️ Important</h4>
+          <p>If you consistently show severe dehydration or experience symptoms like dizziness, confusion, or dark urine, please consult a healthcare professional immediately.</p>
+        </div>
+      </div>
+
+      <!-- Reminders -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🔔</div>
+          <h2>Setting Up Reminders</h2>
+        </div>
+
+        <h3>Configuring Your Reminders</h3>
+        <ol class="step-list">
+          <li><span class="step-number">1</span>Navigate to the "Reminders" page from the menu</li>
+          <li><span class="step-number">2</span>Toggle "Enable Reminders" to turn notifications on/off</li>
+          <li><span class="step-number">3</span>Select your preferred reminder interval (30 min - 3 hours)</li>
+          <li><span class="step-number">4</span>Set your active hours (when you want to receive reminders)</li>
+          <li><span class="step-number">5</span>Choose whether to enable sound notifications</li>
+          <li><span class="step-number">6</span>Click "Save Settings"</li>
+        </ol>
+
+        <h3>Browser Notifications</h3>
+        <p>For the best experience, enable browser notifications:</p>
+        <ol class="step-list">
+          <li><span class="step-number">1</span>Scroll to "Browser Notifications" section</li>
+          <li><span class="step-number">2</span>Click "Enable" button</li>
+          <li><span class="step-number">3</span>Allow notifications when your browser prompts you</li>
+          <li><span class="step-number">4</span>You'll receive reminders even when not on the ACQUA page</li>
+        </ol>
+
+        <div class="tip-box">
+          <h4>💡 Best Practices</h4>
+          <p>Set reminders every 1-2 hours during your waking hours. Adjust based on your activity level - increase frequency if you're exercising or in hot weather.</p>
+        </div>
+      </div>
+
+      <!-- Badges & Achievements -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🏆</div>
+          <h2>Badges & Achievements</h2>
+        </div>
+
+        <h3>Earning Badges</h3>
+        <p>Stay motivated by earning badges for consistent hydration habits:</p>
+
+        <div class="feature-grid">
+          <div class="feature-item">
+            <h4>🌟 First Drop</h4>
+            <p>Complete your first hydration test</p>
+          </div>
+          <div class="feature-item">
+            <h4>🔥 7-Day Streak</h4>
+            <p>Test your hydration 7 days in a row</p>
+          </div>
+          <div class="feature-item">
+            <h4>💧 Hydration Master</h4>
+            <p>Maintain good hydration for 30 days</p>
+          </div>
+          <div class="feature-item">
+            <h4>📈 Perfect Week</h4>
+            <p>Stay well-hydrated every day for a week</p>
+          </div>
+        </div>
+
+        <p>View all your earned badges on the Badges page. Share your achievements with friends to encourage healthy habits!</p>
+      </div>
+
+      <!-- Navigation -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🧭</div>
+          <h2>Navigating ACQUA</h2>
+        </div>
+
+        <h3>Main Pages</h3>
+        
+        <div class="feature-grid">
+          <div class="feature-item">
+            <h4>🏠 Homepage</h4>
+            <p>Overview of ACQUA and your dashboard</p>
+          </div>
+          <div class="feature-item">
+            <h4>🔬 Testing</h4>
+            <p>View your current and past test results</p>
+          </div>
+          <div class="feature-item">
+            <h4>🔔 Reminders</h4>
+            <p>Configure your hydration reminders</p>
+          </div>
+          <div class="feature-item">
+            <h4>🏆 Badges</h4>
+            <p>View earned achievements</p>
+          </div>
+          <div class="feature-item">
+            <h4>📖 Manual</h4>
+            <p>This user guide (you are here!)</p>
+          </div>
+        </div>
+
+        <h3>Using the Menu</h3>
+        <ol class="step-list">
+          <li><span class="step-number">1</span>Click the "Menu" button in the top right corner</li>
+          <li><span class="step-number">2</span>Select the page you want to visit</li>
+          <li><span class="step-number">3</span>Use "Log Out" to safely exit your account</li>
+        </ol>
+      </div>
+
+      <!-- Privacy & Security -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🔒</div>
+          <h2>Privacy & Security</h2>
+        </div>
+
+        <h3>Data Protection</h3>
+        <p>ACQUA takes your privacy seriously:</p>
+        
+        <ul class="step-list">
+          <li>All passwords are encrypted using industry-standard bcrypt hashing</li>
+          <li>Your data is stored securely on encrypted servers</li>
+          <li>We comply with the Philippine Data Privacy Act (RA 10173)</li>
+          <li>Your personal information is never sold or shared with third parties</li>
+          <li>You can request data deletion at any time</li>
+        </ul>
+
+        <h3>Account Security Tips</h3>
+        <div class="tip-box">
+          <h4>💡 Keep Your Account Safe</h4>
+          <p>Use a strong, unique password • Enable reminders to stay active • Log out on shared devices • Never share your login credentials</p>
+        </div>
+      </div>
+
+      <!-- Troubleshooting -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🔧</div>
+          <h2>Troubleshooting</h2>
+        </div>
+
+        <h3>Common Issues</h3>
+
+        <div class="feature-item" style="margin-bottom: 15px;">
+          <h4>Can't log in?</h4>
+          <p>• Check your email and password are correct<br>
+          • Try resetting your password<br>
+          • Clear your browser cache and cookies<br>
+          • Make sure JavaScript is enabled</p>
+        </div>
+
+        <div class="feature-item" style="margin-bottom: 15px;">
+          <h4>Not receiving reminders?</h4>
+          <p>• Check that reminders are enabled in settings<br>
+          • Verify browser notification permissions<br>
+          • Ensure you're within active hours<br>
+          • Try re-enabling notifications</p>
+        </div>
+
+        <div class="feature-item" style="margin-bottom: 15px;">
+          <h4>Test results not syncing?</h4>
+          <p>• Check your internet connection<br>
+          • Ensure the Arduino device is connected<br>
+          • Refresh the page<br>
+          • Log out and log back in</p>
+        </div>
+
+        <div class="warning-box">
+          <h4>⚠️ Need More Help?</h4>
+          <p>Contact our support team at: <strong>support@acqua-h2know.com</strong></p>
+        </div>
+      </div>
+
+      <!-- Quick Links -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">⚡</div>
+          <h2>Quick Access</h2>
+        </div>
+
+        <div class="quick-links">
+          <a href="homepage.html" class="quick-link">🏠 Go to Homepage</a>
+          <a href="reminders.html" class="quick-link">🔔 Set Reminders</a>
+          <a href="notification.html" class="quick-link">🔬 Test Hydration</a>
+          <a href="badges.html" class="quick-link">🏆 View Badges</a>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+
+  <script src="manual.js"></script>
 </body>
 </html>

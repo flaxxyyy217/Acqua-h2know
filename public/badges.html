@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
   <link rel="stylesheet" href="hompage.css">
+  <link rel="stylesheet" href="badges.css">
 </head>
 <body>
   <header>
-  <h1 id="myH1">H2KN0W</h1>
+  <h1 id="myH1">ACQUA</h1>
 <div class="h-content">
 <!--dropdown-->
 <div class="navbar">
@@ -16,9 +17,10 @@
         <button class="dropdown-button">Menu</button>
         <div class="dropdown-content">
             <a href="reminders.html">Reminders</a>
-            <a href="notification.html">Notification</a>
+            <a href="Testing.html">Testing</a>
             <a href="badges.html">Badges</a>
             <a href="Manual.html">Manual</a>
+            <a href="homepage.html">Home</a>
             <a href="combo.html" id="logout">Log Out</a>
         </div>
     </div>
@@ -26,10 +28,68 @@
 </header>
 <!--THIS IS THE MAIN CONTENT-->
 
-<div class="Fstbox">
-  <div class="intro">
-    <H1>BADGES</H1>
+<div class="badges-container">
+    <div class="badges-header">
+      <h1>🏆 ACHIEVEMENTS</h1>
+      <p>Track your hydration journey and unlock amazing badges!</p>
+    </div>
+
+    <div class="stats-overview">
+      <div class="stat-card">
+        <div class="stat-number" id="totalBadges">0</div>
+        <div class="stat-label">Total Badges</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="unlockedBadges">0</div>
+        <div class="stat-label">Unlocked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="streakDays">0</div>
+        <div class="stat-label">Day Streak</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="totalWater">0L</div>
+        <div class="stat-label">Total Water</div>
+      </div>
+    </div>
+
+    <!-- Daily Achievements -->
+    <div class="category-section">
+      <div class="category-title">
+        <span class="category-icon">☀️</span>
+        <h2>Daily Achievements</h2>
+      </div>
+      <div class="badges-grid" id="dailyBadges"></div>
+    </div>
+
+    <!-- Streak Achievements -->
+    <div class="category-section">
+      <div class="category-title">
+        <span class="category-icon">🔥</span>
+        <h2>Streak Master</h2>
+      </div>
+      <div class="badges-grid" id="streakBadges"></div>
+    </div>
+
+    <!-- Volume Achievements -->
+    <div class="category-section">
+      <div class="category-title">
+        <span class="category-icon">💧</span>
+        <h2>Hydration Hero</h2>
+      </div>
+      <div class="badges-grid" id="volumeBadges"></div>
+    </div>
+
+    <!-- Special Achievements -->
+    <div class="category-section">
+      <div class="category-title">
+        <span class="category-icon">⭐</span>
+        <h2>Special Achievements</h2>
+      </div>
+      <div class="badges-grid" id="specialBadges"></div>
+    </div>
   </div>
-</div>
+
+  <script src="badges.js"></script>
 </body>
 </html>

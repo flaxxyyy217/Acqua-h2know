@@ -14,6 +14,7 @@ body {
   padding: 20px;
   position: relative;
   overflow: hidden;
+  user-select: none;
 }
 
 /* Glowing orb effect */
@@ -202,6 +203,8 @@ input[type="text"] {
   background: #ffffff;
   color: #1f2937;
   font-family: inherit;
+  caret-color: black;
+  cursor: black;
 }
 
 input[type="email"]:focus,

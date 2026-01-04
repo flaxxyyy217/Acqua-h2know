@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
   <link rel="stylesheet" href="hompage.css">
+  <link rel="stylesheet" href="reminder.css">
 </head>
 <body>
   <header>
-  <h1 id="myH1">H2KN0W</h1>
+  <h1 id="myH1">ACQUA</h1>
 <div class="h-content">
 <!--dropdown-->
 <div class="navbar">
@@ -16,9 +17,10 @@
         <button class="dropdown-button">Menu</button>
         <div class="dropdown-content">
             <a href="reminders.html">Reminders</a>
-            <a href="notification.html">Notification</a>
+            <a href="Testing.html">Testing</a>
             <a href="badges.html">Badges</a>
             <a href="Manual.html">Manual</a>
+            <a href="homepage.html">Home</a>
             <a href="combo.html" id="logout">Log Out</a>
         </div>
     </div>
@@ -26,10 +28,105 @@
 </header>
 <!--THIS IS THE MAIN CONTENT-->
 
-<div class="Fstbox">
-  <div class="intro">
-    <H1>reminders</H1>
+ <div class="reminders-container">
+    <!-- Main Reminder Settings -->
+    <div class="reminder-card">
+      <div class="reminder-header">
+        <div class="reminder-icon">💧</div>
+        <h2>Hydration Reminders</h2>
+      </div>
+      <p class="reminder-description">
+        Stay hydrated throughout the day! Set up personalized reminders to drink water at regular intervals.
+      </p>
+
+      <div class="reminder-settings">
+        <!-- Enable Reminders -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <h3>Enable Reminders</h3>
+            <p>Turn on/off hydration reminders</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="enableReminders" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- Reminder Interval -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <h3>Reminder Interval</h3>
+            <p>How often should we remind you?</p>
+          </div>
+          <select class="select-input" id="reminderInterval">
+            <option value="30">Every 30 minutes</option>
+            <option value="60" selected>Every 1 hour</option>
+            <option value="90">Every 1.5 hours</option>
+            <option value="120">Every 2 hours</option>
+            <option value="180">Every 3 hours</option>
+          </select>
+        </div>
+
+        <!-- Start Time -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <h3>Start Time</h3>
+            <p>When should reminders start?</p>
+          </div>
+          <input type="time" class="time-input" id="startTime" value="08:00">
+        </div>
+
+        <!-- End Time -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <h3>End Time</h3>
+            <p>When should reminders stop?</p>
+          </div>
+          <input type="time" class="time-input" id="endTime" value="22:00">
+        </div>
+
+        <!-- Sound -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <h3>Sound</h3>
+            <p>Play sound with notifications</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="enableSound" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <button class="save-btn" id="saveSettings">Save Settings</button>
+
+      <div class="notification-status" id="notificationStatus">
+        <span class="status-icon">✅</span>
+        <span class="status-text">Reminders are active</span>
+      </div>
+    </div>
+
+    <!-- Notification Settings -->
+    <div class="reminder-card">
+      <div class="reminder-header">
+        <div class="reminder-icon">🔔</div>
+        <h2>Browser Notifications</h2>
+      </div>
+      <p class="reminder-description">
+        Allow browser notifications to receive hydration reminders even when you're not on this page.
+      </p>
+
+      <div class="reminder-settings">
+        <div class="setting-row">
+          <div class="setting-label">
+            <h3>Browser Notifications</h3>
+            <p id="permissionStatus">Click to enable notifications</p>
+          </div>
+          <button class="save-btn" id="requestPermission" style="margin: 0;">Enable</button>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+<script src="reminder.js"></script>
 </body>
 </html>
