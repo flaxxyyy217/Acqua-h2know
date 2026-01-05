@@ -186,6 +186,68 @@ const redirectIfAuthenticated = (req, res, next) => {
   }
 };
 
+// Forgot Password - Send reset email
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email is required' 
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal if email exists for security
+      return res.json({ 
+        success: true, 
+        message: 'If that email exists, a reset link has been sent.' 
+      });
+    }
+
+    // Generate temporary password
+    const tempPassword = 'temp' + Math.random().toString(36).substring(2, 10);
+    
+    // Hash and save new password
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    // Send email
+    try {
+      const emailContent = emailTemplates.passwordReset(user.email, tempPassword);
+      
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || 'ACQUA <noreply@acqua.com>',
+        to: user.email,
+        subject: emailContent.subject,
+        html: emailContent.html
+      });
+
+      res.json({ 
+        success: true, 
+        message: 'Password reset email sent successfully.' 
+      });
+    } catch (emailError) {
+      console.error('Email send error:', emailError);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to send reset email. Please try again later.' 
+      });
+    }
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error. Please try again.' 
+    });
+  }
+});
+
+
 // Admin Reset Password with Email
 app.post('/api/admin/reset-password', authenticateToken, async (req, res) => {
   try {

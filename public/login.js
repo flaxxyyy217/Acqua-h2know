@@ -5,13 +5,19 @@ function toggleForms(formId) {
 
 // Helper function to show messages
 function showMessage(message, type = 'error') {
+    const colors = {
+        success: '#10b981',
+        error: '#ef4444',
+        info: '#3b82f6'
+    };
+    
     const alertDiv = document.createElement('div');
     alertDiv.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
         padding: 15px 20px;
-        background: ${type === 'success' ? '#10b981' : '#ef4444'};
+        background: ${colors[type] || colors.error};
         color: white;
         border-radius: 8px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -23,7 +29,7 @@ function showMessage(message, type = 'error') {
 
     setTimeout(() => {
         alertDiv.remove();
-    }, 3000);
+    }, 4000);
 }
 
 // Add CSS animation
@@ -181,4 +187,54 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+});
+
+// Handle Forgot Password
+function handleForgotPassword(e) {
+  e.preventDefault();
+  
+  const email = prompt('Enter your email address:');
+  
+  if (!email) return;
+  
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showMessage('Please enter a valid email address', 'error');
+    return;
+  }
+
+  // Show loading message
+  showMessage('Sending reset email...', 'info');
+
+  fetch('/api/forgot-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showMessage('✓ Password reset email sent! Check your inbox.', 'success');
+    } else {
+      showMessage(data.message || 'Failed to send reset email', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showMessage('Network error. Please try again.', 'error');
+  });
+}
+
+// Add event listener for forgot password link
+document.addEventListener('DOMContentLoaded', function() {
+  // ... existing code ...
+  
+  // Add this at the end of DOMContentLoaded
+  const forgotPasswordLink = document.querySelector('.remeber-forgot a');
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener('click', handleForgotPassword);
+  }
 });
