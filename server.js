@@ -8,14 +8,360 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const nodemailer = require('nodemailer');
 
 const app = express();
+// Configure email transporter (add after mongoose connection)
+var transporter = nodemailer.createTransport({
+  service: process.env.EMAIL_SERVICE || 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
+
+// Verify email configuration
+transporter.verify((error, success) => {
+  if (error) {
+    console.log('❌ Email configuration error:', error);
+  } else {
+    console.log('✅ Email server is ready');
+  }
+});
+
+// Email templates
+const emailTemplates = {
+  passwordReset: (email, tempPassword) => ({
+    subject: '🔑 Your Password Has Been Reset - ACQUA',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #3b82f6, #0ea5e9); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+          .password-box { background: white; border: 2px solid #3b82f6; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }
+          .password { font-size: 24px; font-weight: bold; color: #3b82f6; letter-spacing: 2px; }
+          .button { background: linear-gradient(135deg, #3b82f6, #0ea5e9); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; margin: 20px 0; }
+          .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
+          .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>💧 ACQUA</h1>
+            <p>Password Reset Notification</p>
+          </div>
+          <div class="content">
+            <h2>Hello!</h2>
+            <p>Your password has been reset by an administrator. Here are your new login credentials:</p>
+            
+            <div class="password-box">
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Temporary Password:</strong></p>
+              <p class="password">${tempPassword}</p>
+            </div>
+
+            <div class="warning">
+              <strong>⚠️ Important Security Notice:</strong>
+              <ul>
+                <li>This is a temporary password</li>
+                <li>Please change it immediately after logging in</li>
+                <li>Never share your password with anyone</li>
+                <li>If you didn't request this reset, contact support immediately</li>
+              </ul>
+            </div>
+
+            <div style="text-align: center;">
+              <a href="${process.env.SITE_URL || 'http://localhost:5500'}" class="button">
+                Login to ACQUA
+              </a>
+            </div>
+
+            <p>After logging in with this temporary password, please:</p>
+            <ol>
+              <li>Go to your account settings</li>
+              <li>Change your password to something secure</li>
+              <li>Use a combination of letters, numbers, and symbols</li>
+            </ol>
+
+            <p>If you have any questions or concerns, please don't hesitate to contact our support team.</p>
+
+            <p>Best regards,<br><strong>The ACQUA Team</strong></p>
+          </div>
+          <div class="footer">
+            <p>This is an automated message from ACQUA Hydration Monitoring System</p>
+            <p>© 2026 ACQUA. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  }),
+
+  customMessage: (subject, message, userName) => ({
+    subject: subject,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #3b82f6, #0ea5e9); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+          .message-box { background: white; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0; }
+          .button { background: linear-gradient(135deg, #3b82f6, #0ea5e9); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; margin: 20px 0; }
+          .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>💧 ACQUA</h1>
+            <p>Important Message</p>
+          </div>
+          <div class="content">
+            <h2>Hello ${userName}!</h2>
+            
+            <div class="message-box">
+              ${message.replace(/\n/g, '<br>')}
+            </div>
+
+            <div style="text-align: center;">
+              <a href="${process.env.SITE_URL || 'http://localhost:5500'}" class="button">
+                Visit ACQUA
+              </a>
+            </div>
+
+            <p>If you have any questions, please contact our support team.</p>
+
+            <p>Best regards,<br><strong>The ACQUA Team</strong></p>
+          </div>
+          <div class="footer">
+            <p>This is an automated message from ACQUA Hydration Monitoring System</p>
+            <p>© 2026 ACQUA. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  })
+};
+
+// Admin Reset Password with Email
+app.post('/api/admin/reset-password', authenticateToken, async (req, res) => {
+  try {
+    const { userId, newPassword, sendEmail } = req.body;
+
+    if (!userId || !newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User ID and new password required' 
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 6 characters' 
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    // Send email if requested
+    if (sendEmail) {
+      try {
+        const emailContent = emailTemplates.passwordReset(user.email, newPassword);
+        
+        await transporter.sendMail({
+          from: process.env.EMAIL_FROM || 'ACQUA <noreply@acqua.com>',
+          to: user.email,
+          subject: emailContent.subject,
+          html: emailContent.html
+        });
+
+        res.json({ 
+          success: true, 
+          message: `Password reset for ${user.email}. Email sent successfully.`,
+          tempPassword: newPassword,
+          emailSent: true
+        });
+      } catch (emailError) {
+        console.error('Email send error:', emailError);
+        res.json({ 
+          success: true, 
+          message: `Password reset for ${user.email}, but email failed to send.`,
+          tempPassword: newPassword,
+          emailSent: false,
+          emailError: emailError.message
+        });
+      }
+    } else {
+      res.json({ 
+        success: true, 
+        message: `Password reset for ${user.email}`,
+        tempPassword: newPassword,
+        emailSent: false
+      });
+    }
+
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Password reset failed' 
+    });
+  }
+});
+
+// Send Custom Email to User
+app.post('/api/admin/send-email', authenticateToken, async (req, res) => {
+  try {
+    const { userId, subject, message } = req.body;
+
+    if (!userId || !subject || !message) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User ID, subject, and message are required' 
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    const emailContent = emailTemplates.customMessage(subject, message, user.fullName);
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || 'ACQUA <noreply@acqua.com>',
+      to: user.email,
+      subject: emailContent.subject,
+      html: emailContent.html
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Email sent successfully to ${user.email}`
+    });
+
+  } catch (error) {
+    console.error('Send email error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to send email: ' + error.message 
+    });
+  }
+});
+
+// Send Bulk Email
+app.post('/api/admin/send-bulk-email', authenticateToken, async (req, res) => {
+  try {
+    const { userIds, subject, message } = req.body;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User IDs array is required' 
+      });
+    }
+
+    if (!subject || !message) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Subject and message are required' 
+      });
+    }
+
+    const users = await User.find({ _id: { $in: userIds } });
+
+    if (users.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No users found' 
+      });
+    }
+
+    const results = {
+      success: [],
+      failed: []
+    };
+
+    for (const user of users) {
+      try {
+        const emailContent = emailTemplates.customMessage(subject, message, user.fullName);
+        
+        await transporter.sendMail({
+          from: process.env.EMAIL_FROM || 'ACQUA <noreply@acqua.com>',
+          to: user.email,
+          subject: emailContent.subject,
+          html: emailContent.html
+        });
+
+        results.success.push(user.email);
+      } catch (error) {
+        results.failed.push({ email: user.email, error: error.message });
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Sent ${results.success.length} emails successfully. ${results.failed.length} failed.`,
+      results
+    });
+
+  } catch (error) {
+    console.error('Bulk email error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to send bulk emails: ' + error.message 
+    });
+  }
+});
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// EMAIL CONFIGURATION
+var transporter = nodemailer.createTransport({
+  service: process.env.EMAIL_SERVICE || 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
+
+// Verify email configuration on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.log('❌ Email configuration error:', error);
+    console.log('⚠️  Password reset emails will not work!');
+  } else {
+    console.log('✅ Email server is ready to send emails');
+  }
+});
 
 // Set view engine
 app.set('view engine', 'ejs');

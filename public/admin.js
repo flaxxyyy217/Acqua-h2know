@@ -338,3 +338,239 @@ let allUsers = [];
       }
     `;
     document.head.appendChild(style);
+
+    // Reset password with email option
+async function resetPassword(userId, email) {
+  const sendEmail = confirm(`Reset password for ${email}?\n\nSend email notification to user?`);
+  
+  if (!confirm('Are you sure you want to reset this password?')) return;
+
+  const tempPassword = 'temp' + Math.random().toString(36).substring(2, 10);
+
+  try {
+    const response = await fetch('/api/admin/reset-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        userId, 
+        newPassword: tempPassword,
+        sendEmail: sendEmail
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      let message = `✅ Password Reset Successful!\n\n`;
+      message += `Email: ${email}\n`;
+      message += `Temporary Password: ${data.tempPassword}\n\n`;
+      
+      if (data.emailSent) {
+        message += `📧 Email notification sent to user.\n\n`;
+      } else if (sendEmail) {
+        message += `⚠️ Password reset but email failed to send.\n`;
+        message += `Error: ${data.emailError || 'Unknown error'}\n\n`;
+      }
+      
+      message += `⚠️ IMPORTANT:\n`;
+      message += `• Save this password if email wasn't sent\n`;
+      message += `• Share it securely with the user\n`;
+      message += `• User should change it after first login`;
+      
+      alert(message);
+      
+      // Copy to clipboard
+      if (navigator.clipboard && !data.emailSent) {
+        navigator.clipboard.writeText(data.tempPassword).then(() => {
+          showSuccess('✓ Password copied to clipboard!');
+        });
+      } else if (data.emailSent) {
+        showSuccess('✓ Password reset and email sent!');
+      }
+    } else {
+      showError(data.message || 'Password reset failed');
+    }
+  } catch (error) {
+    console.error('Reset error:', error);
+    showError('Failed to reset password. Please try again.');
+  }
+}
+
+// Send custom email to user
+async function sendEmailToUser(userId, email, userName) {
+  const subject = prompt('Email Subject:', 'Important Update from ACQUA');
+  if (!subject) return;
+
+  const message = prompt('Email Message:', 'Hello! We wanted to inform you...');
+  if (!message) return;
+
+  if (!confirm(`Send email to ${email}?`)) return;
+
+  try {
+    showInfo('Sending email...');
+
+    const response = await fetch('/api/admin/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        userId, 
+        subject, 
+        message 
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showSuccess(`✓ Email sent to ${email}`);
+    } else {
+      showError(data.message || 'Failed to send email');
+    }
+  } catch (error) {
+    console.error('Email error:', error);
+    showError('Failed to send email. Please try again.');
+  }
+}
+
+// Send bulk email to all users
+async function sendBulkEmail() {
+  if (allUsers.length === 0) {
+    showError('No users available');
+    return;
+  }
+
+  const subject = prompt('Email Subject:', 'Important Announcement');
+  if (!subject) return;
+
+  const message = prompt('Email Message (will be sent to all users):', 'Dear ACQUA users...');
+  if (!message) return;
+
+  if (!confirm(`Send email to ${allUsers.length} users?`)) return;
+
+  try {
+    showInfo('Sending bulk email...');
+
+    const userIds = allUsers.map(u => u._id);
+
+    const response = await fetch('/api/admin/send-bulk-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        userIds, 
+        subject, 
+        message 
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      const successCount = data.results.success.length;
+      const failCount = data.results.failed.length;
+      
+      let msg = `✓ Bulk email sent!\n\n`;
+      msg += `Success: ${successCount}\n`;
+      msg += `Failed: ${failCount}`;
+      
+      if (failCount > 0) {
+        msg += `\n\nFailed emails:\n`;
+        data.results.failed.forEach(f => {
+          msg += `• ${f.email}\n`;
+        });
+      }
+      
+      alert(msg);
+      showSuccess(data.message);
+    } else {
+      showError(data.message || 'Failed to send bulk email');
+    }
+  } catch (error) {
+    console.error('Bulk email error:', error);
+    showError('Failed to send bulk email. Please try again.');
+  }
+}
+
+// Update the displayUsers function to add email buttons
+function displayUsers(users) {
+  const container = document.getElementById('tableContainer');
+  
+  if (users.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">👥</div>
+        <h3>No Users Found</h3>
+        <p>No users match your search criteria</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `
+    <div class="table-wrapper">
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Full Name</th>
+            <th>Email</th>
+            <th>Joined Date</th>
+            <th>Total Tests</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  users.forEach((user, index) => {
+    const joinDate = new Date(user.createdAt).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+    const totalTests = user.hydrationResults?.length || 0;
+    
+    html += `
+      <tr>
+        <td><strong>${index + 1}</strong></td>
+        <td>${escapeHtml(user.fullName)}</td>
+        <td>${escapeHtml(user.email)}</td>
+        <td>${joinDate}</td>
+        <td>${totalTests}</td>
+        <td><span class="status-badge status-active">Active</span></td>
+        <td>
+          <button 
+            class="action-btn" 
+            onclick="resetPassword('${user._id}', '${escapeHtml(user.email)}')"
+            title="Reset Password"
+            style="margin-right: 5px;"
+          >
+            🔑 Reset
+          </button>
+          <button 
+            class="action-btn" 
+            onclick="sendEmailToUser('${user._id}', '${escapeHtml(user.email)}', '${escapeHtml(user.fullName)}')"
+            title="Send Email"
+            style="background: linear-gradient(135deg, #10b981, #059669);"
+          >
+            📧 Email
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
