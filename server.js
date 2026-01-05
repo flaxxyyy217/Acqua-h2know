@@ -152,6 +152,40 @@ const emailTemplates = {
   })
 };
 
+// Authentication Middleware
+const authenticateToken = (req, res, next) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.redirect('/');
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      res.clearCookie('token');
+      return res.redirect('/');
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Middleware to redirect logged-in users away from login page
+const redirectIfAuthenticated = (req, res, next) => {
+  const token = req.cookies.token;
+
+  if (token) {
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (!err) {
+        return res.redirect('/homepage');
+      }
+      next();
+    });
+  } else {
+    next();
+  }
+};
+
 // Admin Reset Password with Email
 app.post('/api/admin/reset-password', authenticateToken, async (req, res) => {
   try {
@@ -403,39 +437,7 @@ const User = mongoose.model('User', userSchema);
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-// Authentication Middleware
-const authenticateToken = (req, res, next) => {
-  const token = req.cookies.token;
 
-  if (!token) {
-    return res.redirect('/');
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      res.clearCookie('token');
-      return res.redirect('/');
-    }
-    req.user = user;
-    next();
-  });
-};
-
-// Middleware to redirect logged-in users away from login page
-const redirectIfAuthenticated = (req, res, next) => {
-  const token = req.cookies.token;
-
-  if (token) {
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (!err) {
-        return res.redirect('/homepage');
-      }
-      next();
-    });
-  } else {
-    next();
-  }
-};
 
 // PUBLIC ROUTES
 app.get('/', redirectIfAuthenticated, (req, res) => {
