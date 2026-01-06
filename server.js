@@ -1,7 +1,5 @@
 require('dotenv').config();
 
-const isProduction = process.env.NODE_ENV === 'production';
-
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
@@ -11,8 +9,79 @@ const cookieParser = require('cookie-parser');
 const nodemailer = require('nodemailer');
 
 const app = express();
-// Configure email transporter (add after mongoose connection)
-var transporter = nodemailer.createTransport({
+const isProduction = process.env.NODE_ENV === 'production';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Set view engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/h2know';
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('✅ MongoDB Connected'))
+  .catch(err => console.error('❌ MongoDB Connection Error:', err));
+
+// User Schema
+const userSchema = new mongoose.Schema({
+  fullName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const User = mongoose.model('User', userSchema);
+
+// Hydration Test Schema
+const hydrationTestSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  testDate: {
+    type: Date,
+    default: Date.now
+  },
+  hydrationLevel: {
+    type: String,
+    enum: ['Well Hydrated', 'Slightly Dehydrated', 'Dehydrated', 'Severely Dehydrated'],
+    required: true
+  },
+  sensorReading: {
+    type: Number,
+    required: true
+  },
+  notes: String
+});
+
+const HydrationTest = mongoose.model('HydrationTest', hydrationTestSchema);
+
+// EMAIL CONFIGURATION (Single transporter)
+const transporter = nodemailer.createTransport({
   service: process.env.EMAIL_SERVICE || 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
@@ -20,19 +89,21 @@ var transporter = nodemailer.createTransport({
   }
 });
 
-// Verify email configuration
+// Verify email configuration on startup
 transporter.verify((error, success) => {
   if (error) {
     console.log('❌ Email configuration error:', error);
+    console.log('⚠️  Password reset emails will not work!');
+    console.log('Please check your EMAIL_USER and EMAIL_PASSWORD in .env file');
   } else {
-    console.log('✅ Email server is ready');
+    console.log('✅ Email server is ready to send emails');
   }
 });
 
 // Email templates
 const emailTemplates = {
   passwordReset: (email, tempPassword) => ({
-    subject: '🔑 Your Password Has Been Reset - ACQUA',
+    subject: '🔒 Your Password Has Been Reset - ACQUA',
     html: `
       <!DOCTYPE html>
       <html>
@@ -57,7 +128,7 @@ const emailTemplates = {
           </div>
           <div class="content">
             <h2>Hello!</h2>
-            <p>Your password has been reset by an administrator. Here are your new login credentials:</p>
+            <p>Your password has been reset. Here are your new login credentials:</p>
             
             <div class="password-box">
               <p><strong>Email:</strong> ${email}</p>
@@ -76,7 +147,7 @@ const emailTemplates = {
             </div>
 
             <div style="text-align: center;">
-              <a href="${process.env.SITE_URL || 'http://localhost:5500'}" class="button">
+              <a href="${process.env.SITE_URL || 'https://acqua-h2know-1.onrender.com'}" class="button">
                 Login to ACQUA
               </a>
             </div>
@@ -132,7 +203,7 @@ const emailTemplates = {
             </div>
 
             <div style="text-align: center;">
-              <a href="${process.env.SITE_URL || 'http://localhost:5500'}" class="button">
+              <a href="${process.env.SITE_URL || 'https://acqua-h2know-1.onrender.com'}" class="button">
                 Visit ACQUA
               </a>
             </div>
@@ -185,321 +256,6 @@ const redirectIfAuthenticated = (req, res, next) => {
     next();
   }
 };
-
-// Forgot Password - Send reset email
-app.post('/api/forgot-password', async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email is required' 
-      });
-    }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      // Don't reveal if email exists for security
-      return res.json({ 
-        success: true, 
-        message: 'If that email exists, a reset link has been sent.' 
-      });
-    }
-
-    // Generate temporary password
-    const tempPassword = 'temp' + Math.random().toString(36).substring(2, 10);
-    
-    // Hash and save new password
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
-    user.password = hashedPassword;
-    await user.save();
-
-    // Send email
-    try {
-      const emailContent = emailTemplates.passwordReset(user.email, tempPassword);
-      
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || 'ACQUA <noreply@acqua.com>',
-        to: user.email,
-        subject: emailContent.subject,
-        html: emailContent.html
-      });
-
-      res.json({ 
-        success: true, 
-        message: 'Password reset email sent successfully.' 
-      });
-    } catch (emailError) {
-      console.error('Email send error:', emailError);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Failed to send reset email. Please try again later.' 
-      });
-    }
-
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error. Please try again.' 
-    });
-  }
-});
-
-
-// Admin Reset Password with Email
-app.post('/api/admin/reset-password', authenticateToken, async (req, res) => {
-  try {
-    const { userId, newPassword, sendEmail } = req.body;
-
-    if (!userId || !newPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'User ID and new password required' 
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Password must be at least 6 characters' 
-      });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
-      });
-    }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    await user.save();
-
-    // Send email if requested
-    if (sendEmail) {
-      try {
-        const emailContent = emailTemplates.passwordReset(user.email, newPassword);
-        
-        await transporter.sendMail({
-          from: process.env.EMAIL_FROM || 'ACQUA <noreply@acqua.com>',
-          to: user.email,
-          subject: emailContent.subject,
-          html: emailContent.html
-        });
-
-        res.json({ 
-          success: true, 
-          message: `Password reset for ${user.email}. Email sent successfully.`,
-          tempPassword: newPassword,
-          emailSent: true
-        });
-      } catch (emailError) {
-        console.error('Email send error:', emailError);
-        res.json({ 
-          success: true, 
-          message: `Password reset for ${user.email}, but email failed to send.`,
-          tempPassword: newPassword,
-          emailSent: false,
-          emailError: emailError.message
-        });
-      }
-    } else {
-      res.json({ 
-        success: true, 
-        message: `Password reset for ${user.email}`,
-        tempPassword: newPassword,
-        emailSent: false
-      });
-    }
-
-  } catch (error) {
-    console.error('Password reset error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Password reset failed' 
-    });
-  }
-});
-
-// Send Custom Email to User
-app.post('/api/admin/send-email', authenticateToken, async (req, res) => {
-  try {
-    const { userId, subject, message } = req.body;
-
-    if (!userId || !subject || !message) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'User ID, subject, and message are required' 
-      });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
-      });
-    }
-
-    const emailContent = emailTemplates.customMessage(subject, message, user.fullName);
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'ACQUA <noreply@acqua.com>',
-      to: user.email,
-      subject: emailContent.subject,
-      html: emailContent.html
-    });
-
-    res.json({ 
-      success: true, 
-      message: `Email sent successfully to ${user.email}`
-    });
-
-  } catch (error) {
-    console.error('Send email error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to send email: ' + error.message 
-    });
-  }
-});
-
-// Send Bulk Email
-app.post('/api/admin/send-bulk-email', authenticateToken, async (req, res) => {
-  try {
-    const { userIds, subject, message } = req.body;
-
-    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'User IDs array is required' 
-      });
-    }
-
-    if (!subject || !message) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Subject and message are required' 
-      });
-    }
-
-    const users = await User.find({ _id: { $in: userIds } });
-
-    if (users.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'No users found' 
-      });
-    }
-
-    const results = {
-      success: [],
-      failed: []
-    };
-
-    for (const user of users) {
-      try {
-        const emailContent = emailTemplates.customMessage(subject, message, user.fullName);
-        
-        await transporter.sendMail({
-          from: process.env.EMAIL_FROM || 'ACQUA <noreply@acqua.com>',
-          to: user.email,
-          subject: emailContent.subject,
-          html: emailContent.html
-        });
-
-        results.success.push(user.email);
-      } catch (error) {
-        results.failed.push({ email: user.email, error: error.message });
-      }
-    }
-
-    res.json({ 
-      success: true, 
-      message: `Sent ${results.success.length} emails successfully. ${results.failed.length} failed.`,
-      results
-    });
-
-  } catch (error) {
-    console.error('Bulk email error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to send bulk emails: ' + error.message 
-    });
-  }
-});
-
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-
-// EMAIL CONFIGURATION
-var transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE || 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  }
-});
-
-// Verify email configuration on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.log('❌ Email configuration error:', error);
-    console.log('⚠️  Password reset emails will not work!');
-  } else {
-    console.log('✅ Email server is ready to send emails');
-  }
-});
-
-// Set view engine
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-// MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/h2know';
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
-
-// User Schema
-const userSchema = new mongoose.Schema({
-  fullName: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-    trim: true
-  },
-  password: {
-    type: String,
-    required: true,
-    minlength: 6
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
-
-const User = mongoose.model('User', userSchema);
-
-// JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-
-
 
 // PUBLIC ROUTES
 app.get('/', redirectIfAuthenticated, (req, res) => {
@@ -641,6 +397,267 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
+// Forgot Password - Send reset email
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email is required' 
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal if email exists for security
+      return res.json({ 
+        success: true, 
+        message: 'If that email exists, a reset link has been sent.' 
+      });
+    }
+
+    // Generate temporary password
+    const tempPassword = 'temp' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    
+    // Hash and save new password
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    // Send email
+    try {
+      const emailContent = emailTemplates.passwordReset(user.email, tempPassword);
+      
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
+        to: user.email,
+        subject: emailContent.subject,
+        html: emailContent.html
+      });
+
+      console.log(`✅ Password reset email sent to ${user.email}`);
+
+      res.json({ 
+        success: true, 
+        message: 'Password reset email sent successfully. Please check your inbox.' 
+      });
+    } catch (emailError) {
+      console.error('Email send error:', emailError);
+      
+      // Revert password change if email fails
+      await User.findByIdAndUpdate(user._id, { password: user.password });
+      
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to send reset email. Please try again later or contact support.' 
+      });
+    }
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error. Please try again.' 
+    });
+  }
+});
+
+// Admin Reset Password with Email
+app.post('/api/admin/reset-password', authenticateToken, async (req, res) => {
+  try {
+    const { userId, newPassword, sendEmail } = req.body;
+
+    if (!userId || !newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User ID and new password required' 
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 6 characters' 
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    console.log(`✅ Password reset for ${user.email} by admin`);
+
+    // Send email if requested
+    if (sendEmail) {
+      try {
+        const emailContent = emailTemplates.passwordReset(user.email, newPassword);
+        
+        await transporter.sendMail({
+          from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
+          to: user.email,
+          subject: emailContent.subject,
+          html: emailContent.html
+        });
+
+        console.log(`✅ Password reset email sent to ${user.email}`);
+
+        res.json({ 
+          success: true, 
+          message: `Password reset for ${user.email}. Email sent successfully.`,
+          tempPassword: newPassword,
+          emailSent: true
+        });
+      } catch (emailError) {
+        console.error('Email send error:', emailError);
+        res.json({ 
+          success: true, 
+          message: `Password reset for ${user.email}, but email failed to send.`,
+          tempPassword: newPassword,
+          emailSent: false,
+          emailError: emailError.message
+        });
+      }
+    } else {
+      res.json({ 
+        success: true, 
+        message: `Password reset for ${user.email}`,
+        tempPassword: newPassword,
+        emailSent: false
+      });
+    }
+
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Password reset failed' 
+    });
+  }
+});
+
+// Send Custom Email to User
+app.post('/api/admin/send-email', authenticateToken, async (req, res) => {
+  try {
+    const { userId, subject, message } = req.body;
+
+    if (!userId || !subject || !message) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User ID, subject, and message are required' 
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    const emailContent = emailTemplates.customMessage(subject, message, user.fullName);
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
+      to: user.email,
+      subject: emailContent.subject,
+      html: emailContent.html
+    });
+
+    console.log(`✅ Custom email sent to ${user.email}`);
+
+    res.json({ 
+      success: true, 
+      message: `Email sent successfully to ${user.email}`
+    });
+
+  } catch (error) {
+    console.error('Send email error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to send email: ' + error.message 
+    });
+  }
+});
+
+// Send Bulk Email
+app.post('/api/admin/send-bulk-email', authenticateToken, async (req, res) => {
+  try {
+    const { userIds, subject, message } = req.body;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User IDs array is required' 
+      });
+    }
+
+    if (!subject || !message) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Subject and message are required' 
+      });
+    }
+
+    const users = await User.find({ _id: { $in: userIds } });
+
+    if (users.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No users found' 
+      });
+    }
+
+    const results = {
+      success: [],
+      failed: []
+    };
+
+    for (const user of users) {
+      try {
+        const emailContent = emailTemplates.customMessage(subject, message, user.fullName);
+        
+        await transporter.sendMail({
+          from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
+          to: user.email,
+          subject: emailContent.subject,
+          html: emailContent.html
+        });
+
+        results.success.push(user.email);
+        console.log(`✅ Bulk email sent to ${user.email}`);
+      } catch (error) {
+        results.failed.push({ email: user.email, error: error.message });
+        console.error(`❌ Failed to send bulk email to ${user.email}:`, error.message);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Sent ${results.success.length} emails successfully. ${results.failed.length} failed.`,
+      results
+    });
+
+  } catch (error) {
+    console.error('Bulk email error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to send bulk emails: ' + error.message 
+    });
+  }
+});
+
 // PROTECTED ROUTES
 app.get('/homepage', authenticateToken, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'homepage.html'));
@@ -679,13 +696,11 @@ app.get('/admin', authenticateToken, async (req, res) => {
 // Get all users with their data (Admin API)
 app.get('/api/admin/users', authenticateToken, async (req, res) => {
   try {
-    // Get all users without passwords
     const users = await User.find().select('-password').lean();
     
-    // Add placeholder for hydration results
     const usersWithResults = users.map(user => ({
       ...user,
-      hydrationResults: [] // Will be populated when you add hydration tracking
+      hydrationResults: []
     }));
 
     res.json({ 
@@ -707,16 +722,13 @@ app.get('/api/admin/export/csv', authenticateToken, async (req, res) => {
   try {
     const users = await User.find().select('-password').lean();
     
-    // CSV Headers
     let csv = 'Full Name,Email,Account Created,Last Login,Total Tests,Last Test Result,Hydration Status\n';
     
-    // Add user data
     users.forEach(user => {
       const createdDate = new Date(user.createdAt).toLocaleDateString();
       csv += `"${user.fullName}","${user.email}","${createdDate}","N/A","0","N/A","N/A"\n`;
     });
 
-    // Set headers for file download
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=acqua_users_' + Date.now() + '.csv');
     res.send(csv);
@@ -754,31 +766,7 @@ app.get('/api/admin/export/json', authenticateToken, async (req, res) => {
   }
 });
 
-const hydrationTestSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  testDate: {
-    type: Date,
-    default: Date.now
-  },
-  hydrationLevel: {
-    type: String,
-    enum: ['Well Hydrated', 'Slightly Dehydrated', 'Dehydrated', 'Severely Dehydrated'],
-    required: true
-  },
-  sensorReading: {
-    type: Number,
-    required: true
-  },
-  notes: String
-});
-
-const HydrationTest = mongoose.model('HydrationTest', hydrationTestSchema);
-
-// API to add hydration test (for Arduino integration)
+// API to add hydration test
 app.post('/api/hydration/test', authenticateToken, async (req, res) => {
   try {
     const { hydrationLevel, sensorReading, notes } = req.body;
@@ -822,13 +810,10 @@ app.use((req, res) => {
   res.status(404).send('Page not found');
 });
 
-// START SERVER
+// START SERVER (Only once!)
 const PORT = process.env.PORT || 5500;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
-
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`Environment: ${isProduction ? 'Production' : 'Development'}`);
+  console.log(`🌍 Environment: ${isProduction ? 'Production' : 'Development'}`);
+  console.log(`🔗 URL: ${process.env.SITE_URL || 'http://localhost:' + PORT}`);
 });
