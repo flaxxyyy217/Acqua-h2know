@@ -6,6 +6,7 @@
   <title>Document</title>
   <link rel="stylesheet" href="hompage.css">
   <link rel="stylesheet" href="testing.css">
+  <link rel="stylesheet" href="feedback.css">
 </head>
 <body>
 
@@ -97,6 +98,73 @@
           <p id="statusMessage"></p>
         </div>
       </div>
+ <!-- Rating System -->
+        <div class="rating-container" id="ratingContainer">
+          <div class="rating-header">
+            <h3>⭐ Rate Your Experience</h3>
+            <p>How satisfied are you with your hydration test?</p>
+          </div>
+
+          <div class="stars-container">
+            <div class="star-rating" data-rating="1" onclick="selectRating(1)">
+              <div class="star-icon">⭐</div>
+              <div class="star-label">Very<br>Unsatisfied</div>
+            </div>
+            <div class="star-rating" data-rating="2" onclick="selectRating(2)">
+              <div class="star-icon">⭐</div>
+              <div class="star-label">Unsatisfied</div>
+            </div>
+            <div class="star-rating" data-rating="3" onclick="selectRating(3)">
+              <div class="star-icon">⭐</div>
+              <div class="star-label">Neutral</div>
+            </div>
+            <div class="star-rating" data-rating="4" onclick="selectRating(4)">
+              <div class="star-icon">⭐</div>
+              <div class="star-label">Satisfied</div>
+            </div>
+            <div class="star-rating" data-rating="5" onclick="selectRating(5)">
+              <div class="star-icon">⭐</div>
+              <div class="star-label">Very<br>Satisfied</div>
+            </div>
+            <div class="star-rating" data-rating="6" onclick="selectRating(6)">
+              <div class="star-icon">⭐</div>
+              <div class="star-label">Extremely<br>Satisfied</div>
+            </div>
+          </div>
+
+          <div class="rating-feedback" id="ratingFeedback">
+            <h4 id="feedbackTitle"></h4>
+            <p id="feedbackMessage"></p>
+          </div>
+
+          <div class="rating-comment">
+            <textarea 
+              id="ratingComment" 
+              placeholder="Tell us more about your experience... (optional)"
+              maxlength="500"
+            ></textarea>
+            <button class="rating-submit" id="submitRating" onclick="submitRating()">
+              Submit Feedback
+            </button>
+          </div>
+
+          <div class="rating-success" id="ratingSuccess">
+            ✓ Thank you for your feedback!
+          </div>
+
+          <div class="survey-reminder">
+            <h4>📋 One More Thing!</h4>
+            <p>Help us improve ACQUA by completing a quick 2-minute survey about your test experience.</p>
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfpM7CEa7N4aYiUIcuv2VB8a9XDRdJnH60BWt-SdUSdEAcNYw/viewform?usp=header" 
+               target="_blank" 
+               class="survey-link">
+              Complete Survey
+            </a>
+            <p class="survey-note">💌 A survey link has also been sent to your email</p>
+          </div>
+        </div>
+      </div>
+
 
       <!-- Chart Card -->
       <div class="card full-width">

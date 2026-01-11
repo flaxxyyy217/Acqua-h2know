@@ -198,6 +198,11 @@ async function analyzeHydration(data) {
   statusMessage.textContent = message;
   result.classList.add('show');
   
+  // Show rating system after test
+  setTimeout(() => {
+    document.getElementById('ratingContainer').classList.add('show');
+  }, 1000);
+  
   // Save to database
   try {
     const response = await fetch('/api/hydration/test', {
@@ -218,6 +223,9 @@ async function analyzeHydration(data) {
     if (result.success) {
       console.log('Test saved successfully');
       
+      // Store test ID for rating
+      currentTestId = result.testId;
+      
       // If this was the first test, stop timer and show completion
       if (result.isFirstTest) {
         stopTimer();
@@ -228,6 +236,9 @@ async function analyzeHydration(data) {
       }
       
       updateChart(level);
+      
+      // Show survey email notification
+      showMessage('📧 Check your email for a post-test survey!', 'info');
     }
   } catch (error) {
     console.error('Error saving test:', error);
@@ -416,3 +427,108 @@ window.addEventListener('beforeunload', () => {
     bluetoothDevice.gatt.disconnect();
   }
 });
+
+// Rating System
+let selectedRating = 0;
+let currentTestId = null;
+
+function selectRating(rating) {
+  selectedRating = rating;
+  
+  // Remove selected class from all stars
+  document.querySelectorAll('.star-rating').forEach(star => {
+    star.classList.remove('selected');
+  });
+  
+  // Add selected class to clicked star
+  document.querySelector(`[data-rating="${rating}"]`).classList.add('selected');
+  
+  // Show feedback
+  const feedback = document.getElementById('ratingFeedback');
+  const feedbackTitle = document.getElementById('feedbackTitle');
+  const feedbackMessage = document.getElementById('feedbackMessage');
+  
+  const feedbackMessages = {
+    1: {
+      title: 'We\'re Sorry! 😔',
+      message: 'We apologize for the poor experience. Your feedback helps us improve.'
+    },
+    2: {
+      title: 'We Can Do Better 😕',
+      message: 'Thank you for your honest feedback. We\'ll work on improving.'
+    },
+    3: {
+      title: 'Thanks for Your Feedback 😐',
+      message: 'We appreciate your input and will strive to do better.'
+    },
+    4: {
+      title: 'Great to Hear! 😊',
+      message: 'We\'re glad you had a positive experience with ACQUA.'
+    },
+    5: {
+      title: 'Excellent! 🎉',
+      message: 'We\'re thrilled you\'re satisfied with your hydration test!'
+    },
+    6: {
+      title: 'Outstanding! 🌟',
+      message: 'Thank you! We\'re delighted to provide you with excellent service!'
+    }
+  };
+  
+  feedbackTitle.textContent = feedbackMessages[rating].title;
+  feedbackMessage.textContent = feedbackMessages[rating].message;
+  feedback.classList.add('show');
+  
+  // Enable submit button
+  document.getElementById('submitRating').disabled = false;
+}
+
+async function submitRating() {
+  if (selectedRating === 0) {
+    showMessage('Please select a rating first', 'error');
+    return;
+  }
+  
+  const comment = document.getElementById('ratingComment').value.trim();
+  const submitBtn = document.getElementById('submitRating');
+  
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting...';
+  
+  try {
+    const response = await fetch('/api/hydration/rating', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        rating: selectedRating,
+        comment: comment,
+        testId: currentTestId
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Show success message
+      document.getElementById('ratingSuccess').classList.add('show');
+      
+      // Hide rating interface
+      setTimeout(() => {
+        document.getElementById('ratingContainer').style.display = 'none';
+      }, 2000);
+      
+      showMessage('Thank you for your feedback! 🙏', 'success');
+    } else {
+      showMessage('Failed to submit rating. Please try again.', 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Feedback';
+    }
+  } catch (error) {
+    console.error('Error submitting rating:', error);
+    showMessage('Network error. Please try again.', 'error');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Feedback';
+  }
+}
