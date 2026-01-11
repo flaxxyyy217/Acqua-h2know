@@ -96,23 +96,35 @@ const hydrationTestSchema = new mongoose.Schema({
 
 const HydrationTest = mongoose.model('HydrationTest', hydrationTestSchema);
 
-// EMAIL CONFIGURATION (Single transporter)
+// EMAIL CONFIGURATION (Enhanced with better error handling)
 const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE || 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587, // Use 587 for TLS
+  secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
-  }
+  },
+  tls: {
+    rejectUnauthorized: false // Accept self-signed certificates
+  },
+  debug: true, // Enable debug output
+  logger: true // Log to console
 });
 
-// Verify email configuration on startup
+// Verify email configuration on startup with detailed logging
 transporter.verify((error, success) => {
   if (error) {
-    console.log('❌ Email configuration error:', error);
+    console.log('❌ Email configuration error:');
+    console.log('Error details:', error);
     console.log('⚠️ Password reset emails will not work!');
     console.log('Please check your EMAIL_USER and EMAIL_PASSWORD in .env file');
+    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER);
+    console.log('🔑 EMAIL_PASSWORD exists:', !!process.env.EMAIL_PASSWORD);
+    console.log('🔑 EMAIL_PASSWORD length:', process.env.EMAIL_PASSWORD?.length);
   } else {
     console.log('✅ Email server is ready to send emails');
+    console.log('📧 Sending from:', process.env.EMAIL_USER);
   }
 });
 
@@ -380,10 +392,11 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
-// Forgot Password - Send reset email
+// Forgot Password - Send reset email (IMPROVED VERSION)
 app.post('/api/forgot-password', async (req, res) => {
   try {
-    console.log('Forgot password request received:', req.body);
+    console.log('🔐 Forgot password request received');
+    console.log('📧 Request body:', { email: req.body.email });
     
     const { email } = req.body;
 
@@ -397,8 +410,7 @@ app.post('/api/forgot-password', async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase().trim() });
     
     if (!user) {
-      // Don't reveal if email exists for security, but still return success
-      console.log('Email not found:', email);
+      console.log('❌ Email not found:', email);
       return res.json({ 
         success: true, 
         message: 'If that email exists, a reset link has been sent.' 
@@ -408,35 +420,48 @@ app.post('/api/forgot-password', async (req, res) => {
     // Generate temporary password
     const tempPassword = 'Temp' + Math.random().toString(36).substring(2, 10).toUpperCase() + '!1';
     
-    console.log('Generated temp password for:', user.email);
+    console.log('✅ Generated temp password for:', user.email);
     
     // Hash and save new password
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
-    const oldPassword = user.password; // Store old password in case email fails
+    const oldPassword = user.password;
     
     user.password = hashedPassword;
     await user.save();
 
-    // Send email only if email service is configured
+    console.log('💾 Password updated in database');
+
+    // Send email
     if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
       try {
         const emailContent = emailTemplates.passwordReset(user.email, tempPassword);
         
-        await transporter.sendMail({
-          from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
+        console.log('📧 Attempting to send email to:', user.email);
+        console.log('📧 From:', process.env.EMAIL_FROM || process.env.EMAIL_USER);
+        
+        const info = await transporter.sendMail({
+          from: process.env.EMAIL_FROM || `"ACQUA System" <${process.env.EMAIL_USER}>`,
           to: user.email,
           subject: emailContent.subject,
           text: emailContent.text
         });
 
-        console.log(`✅ Password reset email sent to ${user.email}`);
+        console.log('✅ Email sent successfully!');
+        console.log('📨 Message ID:', info.messageId);
+        console.log('📬 Response:', info.response);
+        console.log('📝 Accepted:', info.accepted);
+        console.log('🚫 Rejected:', info.rejected);
 
         res.json({ 
           success: true, 
-          message: 'Password reset email sent successfully. Please check your inbox.' 
+          message: '✅ Password reset email sent successfully. Please check your inbox (and spam folder).' 
         });
       } catch (emailError) {
-        console.error('Email send error:', emailError);
+        console.error('❌ Email send error:');
+        console.error('Error name:', emailError.name);
+        console.error('Error message:', emailError.message);
+        console.error('Error code:', emailError.code);
+        console.error('Full error:', emailError);
         
         // Revert password change if email fails
         user.password = oldPassword;
@@ -444,23 +469,22 @@ app.post('/api/forgot-password', async (req, res) => {
         
         res.status(500).json({ 
           success: false, 
-          message: 'Failed to send reset email. Email service may not be configured properly.' 
+          message: 'Failed to send reset email. Error: ' + emailError.message 
         });
       }
     } else {
-      // Email not configured - for development/testing
-      console.log('⚠️ Email service not configured. New password:', tempPassword);
+      console.log('⚠️ Email service not configured');
+      console.log('EMAIL_USER:', !!process.env.EMAIL_USER);
+      console.log('EMAIL_PASSWORD:', !!process.env.EMAIL_PASSWORD);
       
-      res.json({ 
-        success: true, 
-        message: 'Password reset. (Email service not configured - check server logs for new password)',
-        // In production, remove this:
-        devPassword: tempPassword 
+      res.status(500).json({ 
+        success: false, 
+        message: 'Email service not configured on server' 
       });
     }
 
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error('❌ Forgot password error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Server error. Please try again.' 
@@ -843,6 +867,49 @@ app.get('/api/hydration/history', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching history:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch history' });
+  }
+});
+
+// TEST EMAIL ENDPOINT - Add this after your other routes
+app.get('/api/test-email', async (req, res) => {
+  try {
+    console.log('🧪 Testing email configuration...');
+    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER);
+    console.log('🔑 EMAIL_PASSWORD length:', process.env.EMAIL_PASSWORD?.length);
+    
+    const testEmail = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || `"ACQUA Test" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_USER, // Send to yourself
+      subject: 'ACQUA Email Test - ' + new Date().toLocaleString(),
+      text: 'If you receive this email, your email configuration is working correctly!',
+      html: '<h1>✅ Success!</h1><p>Your ACQUA email system is configured correctly.</p>'
+    });
+
+    console.log('✅ Test email sent!');
+    console.log('Message ID:', testEmail.messageId);
+    console.log('Response:', testEmail.response);
+
+    res.json({
+      success: true,
+      message: 'Test email sent! Check your inbox (and spam folder)',
+      details: {
+        messageId: testEmail.messageId,
+        response: testEmail.response,
+        accepted: testEmail.accepted,
+        rejected: testEmail.rejected
+      }
+    });
+  } catch (error) {
+    console.error('❌ Test email failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Test email failed: ' + error.message,
+      error: {
+        name: error.name,
+        code: error.code,
+        command: error.command
+      }
+    });
   }
 });
 
