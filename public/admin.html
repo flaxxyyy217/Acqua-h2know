@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-  <link rel="stylesheet" href="adminn.css">
+  <title>Admin Dashboard - ACQUA</title>
   <link rel="stylesheet" href="hompage.css">
+  <link rel="stylesheet" href="adminn.css">
 </head>
 <body>
   <header>
-    <h1 id="myH1">ACQUA - Admin</h1>
+    <h1 id="myH1">ACQUA - Admin Dashboard</h1>
     <div class="h-content">
       <div class="navbar">
         <div class="dropdown">
@@ -20,7 +20,6 @@
             <a href="notification.html">Testing</a>
             <a href="badges.html">Badges</a>
             <a href="Manual.html">Manual</a>
-            <a href="admin.html">Admin Dashboard</a>
             <a href="#" id="logout">Log Out</a>
           </div>
         </div>
@@ -29,83 +28,169 @@
   </header>
 
   <div class="admin-container">
-    <!-- Statistics -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-header">
-          <div class="stat-icon">👥</div>
-          <div class="stat-info">
-            <h3>Total Users</h3>
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+      <button class="tab-btn active" onclick="switchTab('users')">👥 User Management</button>
+      <button class="tab-btn" onclick="switchTab('feedback')">💬 Feedback</button>
+    </div>
+
+    <!-- Users Tab -->
+    <div id="usersTab" class="tab-content active">
+      <!-- Statistics -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">👥</div>
+            <div class="stat-info">
+              <h3>Total Users</h3>
+            </div>
           </div>
+          <div class="stat-value" id="totalUsers">-</div>
         </div>
-        <div class="stat-value" id="totalUsers">-</div>
+
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">🔬</div>
+            <div class="stat-info">
+              <h3>Total Tests</h3>
+            </div>
+          </div>
+          <div class="stat-value" id="totalTests">-</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">💧</div>
+            <div class="stat-info">
+              <h3>Avg. Hydration</h3>
+            </div>
+          </div>
+          <div class="stat-value" id="avgHydration">-</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon">📅</div>
+            <div class="stat-info">
+              <h3>New Users (7d)</h3>
+            </div>
+          </div>
+          <div class="stat-value" id="newUsers">-</div>
+        </div>
       </div>
 
-      <div class="stat-card">
-        <div class="stat-header">
-          <div class="stat-icon">🔬</div>
-          <div class="stat-info">
-            <h3>Total Tests</h3>
+      <!-- Users Table -->
+      <div class="admin-card">
+        <div class="admin-header">
+          <h2>📊 User Management</h2>
+          <div class="export-buttons">
+            <button class="export-btn refresh" onclick="loadUsers()">
+              🔄 Refresh
+            </button>
+            <button class="export-btn" onclick="exportCSV()">
+              📄 Export CSV
+            </button>
+            <button class="export-btn json" onclick="exportJSON()">
+              📦 Export JSON
+            </button>
+            <button class="export-btn email" onclick="sendBulkEmail()">
+              📧 Send Bulk Email
+            </button>
           </div>
         </div>
-        <div class="stat-value" id="totalTests">-</div>
-      </div>
 
-      <div class="stat-card">
-        <div class="stat-header">
-          <div class="stat-icon">💧</div>
-          <div class="stat-info">
-            <h3>Avg. Hydration</h3>
-          </div>
+        <div class="search-bar">
+          <input 
+            type="text"
+            class="search-input" 
+            id="searchInput" 
+            placeholder="🔍 Search by name or email..."
+          >
         </div>
-        <div class="stat-value" id="avgHydration">-</div>
-      </div>
 
-      <div class="stat-card">
-        <div class="stat-header">
-          <div class="stat-icon">📅</div>
-          <div class="stat-info">
-            <h3>New Users (7d)</h3>
-          </div>
+        <div id="tableContainer">
+          <div class="loading">📊 Loading users...</div>
         </div>
-        <div class="stat-value" id="newUsers">-</div>
       </div>
     </div>
 
-    <!-- Users Table -->
-    <div class="admin-card">
-      <div class="admin-header">
-        <h2>📊 User Management</h2>
-        <div class="export-buttons">
-          <button class="export-btn refresh" onclick="loadUsers()">
-            🔄 Refresh
-          </button>
-          <button class="export-btn" onclick="exportCSV()">
-            📄 Export CSV
-          </button>
-          <button class="export-btn json" onclick="exportJSON()">
-            📦 Export JSON
-          </button>
-          <button class="export-btn" style="background: linear-gradient(135deg, #10b981, #059669);" onclick="sendBulkEmail()">
-            📧 Send Bulk Email
-          </button>
+    <!-- Feedback Tab -->
+    <div id="feedbackTab" class="tab-content">
+      <!-- Feedback Statistics -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-number" id="totalFeedback">0</div>
+          <div class="stat-label">Total Feedback</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-number" id="avgRating">0.0</div>
+          <div class="stat-label">Average Rating</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💬</div>
+          <div class="stat-number" id="withComments">0</div>
+          <div class="stat-label">With Comments</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📈</div>
+          <div class="stat-number" id="satisfactionRate">0%</div>
+          <div class="stat-label">Satisfaction Rate</div>
         </div>
       </div>
 
-      <div class="search-bar">
-        <input 
-          type="text"
-          class="search-input" 
-          id="searchInput" 
-          placeholder="🔍 Search by name or email..."
-        >
+      <!-- Feedback Actions -->
+      <div class="actions-bar" style="margin-bottom: 20px;">
+        <button class="btn-action" onclick="exportFeedbackCSV()">📥 Export CSV</button>
+        <button class="btn-action" onclick="exportFeedbackJSON()">📥 Export JSON</button>
+        <button class="btn-action refresh" onclick="refreshFeedback()">🔄 Refresh</button>
       </div>
 
-      <div id="tableContainer">
-        <div class="loading">📊 Loading users...</div>
+      <!-- Feedback Filters -->
+      <div class="filter-bar">
+        <select class="filter-select" id="ratingFilter" onchange="filterFeedback()">
+          <option value="all">All Ratings</option>
+          <option value="6">6 Stars</option>
+          <option value="5">5 Stars</option>
+          <option value="4">4 Stars</option>
+          <option value="3">3 Stars</option>
+          <option value="2">2 Stars</option>
+          <option value="1">1 Star</option>
+        </select>
+        <select class="filter-select" id="commentFilter" onchange="filterFeedback()">
+          <option value="all">All Feedback</option>
+          <option value="with">With Comments</option>
+          <option value="without">Without Comments</option>
+        </select>
+      </div>
+
+      <!-- Feedback Table -->
+      <div class="admin-card feedback-table">
+        <div class="loading" id="feedbackLoading">Loading feedback...</div>
+        <div class="table-wrapper" style="display: none;">
+          <table id="feedbackTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>User Name</th>
+                <th>Email</th>
+                <th>Rating</th>
+                <th>Test Result</th>
+                <th>Comment</th>
+              </tr>
+            </thead>
+            <tbody id="feedbackTableBody">
+            </tbody>
+          </table>
+        </div>
+        <div class="no-data" id="noData" style="display: none;">
+          No feedback found
+        </div>
       </div>
     </div>
   </div>
-<script src="admin.js"></script>
+
+  <script src="admin.js"></script>
 </body>
 </html>

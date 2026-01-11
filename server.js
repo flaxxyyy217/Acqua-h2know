@@ -91,40 +91,92 @@ const hydrationTestSchema = new mongoose.Schema({
   isFirstTest: {
     type: Boolean,
     default: false
+  },
+  rating: {
+    type: Number,
+    min: 1,
+    max: 6,
+    default: null
+  },
+  ratingComment: {
+    type: String,
+    default: null
+  },
+  ratingDate: {
+    type: Date,
+    default: null
+  },
+  surveyEmailSent: {
+    type: Boolean,
+    default: false
+  },
+  surveyEmailSentDate: {
+    type: Date,
+    default: null
   }
 });
 
 const HydrationTest = mongoose.model('HydrationTest', hydrationTestSchema);
 
-// EMAIL CONFIGURATION (Enhanced with better error handling)
+// Feedback Schema
+const feedbackSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  userName: {
+    type: String,
+    required: true
+  },
+  userEmail: {
+    type: String,
+    required: true
+  },
+  testId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'HydrationTest',
+    default: null
+  },
+  rating: {
+    type: Number,
+    min: 1,
+    max: 6,
+    required: true
+  },
+  comment: {
+    type: String,
+    default: null
+  },
+  feedbackDate: {
+    type: Date,
+    default: Date.now
+  },
+  testResult: {
+    type: String,
+    default: null
+  }
+});
+
+const Feedback = mongoose.model('Feedback', feedbackSchema);
+
+// EMAIL CONFIGURATION (Single transporter)
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587, // Use 587 for TLS
-  secure: false, // true for 465, false for other ports
+  service: process.env.EMAIL_SERVICE || 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
-  },
-  tls: {
-    rejectUnauthorized: false // Accept self-signed certificates
-  },
-  debug: true, // Enable debug output
-  logger: true // Log to console
+  }
 });
 
-// Verify email configuration on startup with detailed logging
+// Verify email configuration on startup
 transporter.verify((error, success) => {
   if (error) {
-    console.log('❌ Email configuration error:');
-    console.log('Error details:', error);
+    console.log('❌ Email configuration error:', error);
     console.log('⚠️ Password reset emails will not work!');
     console.log('Please check your EMAIL_USER and EMAIL_PASSWORD in .env file');
-    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER);
-    console.log('🔑 EMAIL_PASSWORD exists:', !!process.env.EMAIL_PASSWORD);
-    console.log('🔑 EMAIL_PASSWORD length:', process.env.EMAIL_PASSWORD?.length);
   } else {
     console.log('✅ Email server is ready to send emails');
-    console.log('📧 Sending from:', process.env.EMAIL_USER);
   }
 });
 
@@ -183,6 +235,52 @@ ${message}
 ________________________________________
 
 If you have any questions or need assistance, please contact our support team.
+
+Best regards,
+The ACQUA Team
+
+ACQUA Hydration Monitoring System
+Website: ${process.env.SITE_URL || 'https://acqua-h2know-1.onrender.com'}
+Support: support@acqua.com
+
+________________________________________
+This is an automated message from ACQUA Hydration Monitoring System
+Please do not reply to this email
+© 2026 ACQUA. All rights reserved.
+    `
+  }),
+
+  postTestSurvey: (userName, userEmail, testResult) => ({
+    subject: 'Complete Your Post-Test Survey - ACQUA',
+    text: `
+ACQUA HYDRATION MONITORING SYSTEM
+Post-Test Survey Request
+========================================
+
+Dear ${userName},
+
+Thank you for completing your hydration test with ACQUA!
+
+Your Test Result: ${testResult}
+
+We value your feedback and would appreciate if you could take a few moments to complete our post-test survey. Your responses help us improve our service and provide better hydration monitoring for all users.
+
+📋 COMPLETE YOUR SURVEY HERE:
+https://docs.google.com/forms/d/e/1FAIpQLSfpM7CEa7N4aYiUIcuv2VB8a9XDRdJnH60BWt-SdUSdEAcNYw/viewform?usp=header
+
+The survey will only take 2-3 minutes to complete.
+
+WHY YOUR FEEDBACK MATTERS:
+• Helps us improve the accuracy of our hydration tests
+• Assists in enhancing user experience
+• Contributes to better health monitoring features
+• Supports ongoing research and development
+
+Your participation is voluntary but highly appreciated. All responses are confidential and will be used solely for improving our services.
+
+________________________________________
+
+If you have any immediate concerns or questions about your test results, please contact our support team.
 
 Best regards,
 The ACQUA Team
@@ -392,11 +490,10 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
-// Forgot Password - Send reset email (IMPROVED VERSION)
+// Forgot Password - Send reset email
 app.post('/api/forgot-password', async (req, res) => {
   try {
-    console.log('🔐 Forgot password request received');
-    console.log('📧 Request body:', { email: req.body.email });
+    console.log('Forgot password request received:', req.body);
     
     const { email } = req.body;
 
@@ -410,7 +507,8 @@ app.post('/api/forgot-password', async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase().trim() });
     
     if (!user) {
-      console.log('❌ Email not found:', email);
+      // Don't reveal if email exists for security, but still return success
+      console.log('Email not found:', email);
       return res.json({ 
         success: true, 
         message: 'If that email exists, a reset link has been sent.' 
@@ -420,48 +518,35 @@ app.post('/api/forgot-password', async (req, res) => {
     // Generate temporary password
     const tempPassword = 'Temp' + Math.random().toString(36).substring(2, 10).toUpperCase() + '!1';
     
-    console.log('✅ Generated temp password for:', user.email);
+    console.log('Generated temp password for:', user.email);
     
     // Hash and save new password
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
-    const oldPassword = user.password;
+    const oldPassword = user.password; // Store old password in case email fails
     
     user.password = hashedPassword;
     await user.save();
 
-    console.log('💾 Password updated in database');
-
-    // Send email
+    // Send email only if email service is configured
     if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
       try {
         const emailContent = emailTemplates.passwordReset(user.email, tempPassword);
         
-        console.log('📧 Attempting to send email to:', user.email);
-        console.log('📧 From:', process.env.EMAIL_FROM || process.env.EMAIL_USER);
-        
-        const info = await transporter.sendMail({
-          from: process.env.EMAIL_FROM || `"ACQUA System" <${process.env.EMAIL_USER}>`,
+        await transporter.sendMail({
+          from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
           to: user.email,
           subject: emailContent.subject,
           text: emailContent.text
         });
 
-        console.log('✅ Email sent successfully!');
-        console.log('📨 Message ID:', info.messageId);
-        console.log('📬 Response:', info.response);
-        console.log('📝 Accepted:', info.accepted);
-        console.log('🚫 Rejected:', info.rejected);
+        console.log(`✅ Password reset email sent to ${user.email}`);
 
         res.json({ 
           success: true, 
-          message: '✅ Password reset email sent successfully. Please check your inbox (and spam folder).' 
+          message: 'Password reset email sent successfully. Please check your inbox.' 
         });
       } catch (emailError) {
-        console.error('❌ Email send error:');
-        console.error('Error name:', emailError.name);
-        console.error('Error message:', emailError.message);
-        console.error('Error code:', emailError.code);
-        console.error('Full error:', emailError);
+        console.error('Email send error:', emailError);
         
         // Revert password change if email fails
         user.password = oldPassword;
@@ -469,22 +554,23 @@ app.post('/api/forgot-password', async (req, res) => {
         
         res.status(500).json({ 
           success: false, 
-          message: 'Failed to send reset email. Error: ' + emailError.message 
+          message: 'Failed to send reset email. Email service may not be configured properly.' 
         });
       }
     } else {
-      console.log('⚠️ Email service not configured');
-      console.log('EMAIL_USER:', !!process.env.EMAIL_USER);
-      console.log('EMAIL_PASSWORD:', !!process.env.EMAIL_PASSWORD);
+      // Email not configured - for development/testing
+      console.log('⚠️ Email service not configured. New password:', tempPassword);
       
-      res.status(500).json({ 
-        success: false, 
-        message: 'Email service not configured on server' 
+      res.json({ 
+        success: true, 
+        message: 'Password reset. (Email service not configured - check server logs for new password)',
+        // In production, remove this:
+        devPassword: tempPassword 
       });
     }
 
   } catch (error) {
-    console.error('❌ Forgot password error:', error);
+    console.error('Forgot password error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Server error. Please try again.' 
@@ -761,6 +847,78 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
   }
 });
 
+// Get all feedback (Admin API)
+app.get('/api/admin/feedback', authenticateToken, async (req, res) => {
+  try {
+    const feedback = await Feedback.find()
+      .sort({ feedbackDate: -1 })
+      .populate('userId', 'fullName email')
+      .populate('testId', 'hydrationLevel testDate')
+      .lean();
+
+    res.json({ 
+      success: true, 
+      feedback: feedback,
+      count: feedback.length
+    });
+  } catch (error) {
+    console.error('Error fetching feedback:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching feedback' 
+    });
+  }
+});
+
+// Get feedback statistics (Admin API)
+app.get('/api/admin/feedback/stats', authenticateToken, async (req, res) => {
+  try {
+    const totalFeedback = await Feedback.countDocuments();
+    
+    const ratingStats = await Feedback.aggregate([
+      {
+        $group: {
+          _id: '$rating',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    const avgRating = await Feedback.aggregate([
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' }
+        }
+      }
+    ]);
+
+    const feedbackWithComments = await Feedback.countDocuments({ 
+      comment: { $ne: null, $ne: '' } 
+    });
+
+    res.json({ 
+      success: true, 
+      stats: {
+        totalFeedback,
+        averageRating: avgRating.length > 0 ? avgRating[0].averageRating.toFixed(2) : 0,
+        ratingDistribution: ratingStats,
+        feedbackWithComments,
+        feedbackWithoutComments: totalFeedback - feedbackWithComments
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching feedback stats:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching feedback statistics' 
+    });
+  }
+});
+
 // Export users to CSV
 app.get('/api/admin/export/csv', authenticateToken, async (req, res) => {
   try {
@@ -777,6 +935,60 @@ app.get('/api/admin/export/csv', authenticateToken, async (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=acqua_users_' + Date.now() + '.csv');
     res.send(csv);
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ success: false, message: 'Export failed' });
+  }
+});
+
+// Export feedback to CSV
+app.get('/api/admin/export/feedback-csv', authenticateToken, async (req, res) => {
+  try {
+    const feedback = await Feedback.find()
+      .sort({ feedbackDate: -1 })
+      .lean();
+
+    let csv = 'Date,User Name,Email,Rating (1-6),Test Result,Comment\n';
+    
+    feedback.forEach(item => {
+      const date = new Date(item.feedbackDate).toLocaleString();
+      const comment = (item.comment || 'No comment').replace(/"/g, '""'); // Escape quotes
+      csv += `"${date}","${item.userName}","${item.userEmail}","${item.rating}","${item.testResult || 'N/A'}","${comment}"\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=acqua_feedback_' + Date.now() + '.csv');
+    res.send(csv);
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ success: false, message: 'Export failed' });
+  }
+});
+
+// Export feedback to JSON
+app.get('/api/admin/export/feedback-json', authenticateToken, async (req, res) => {
+  try {
+    const feedback = await Feedback.find()
+      .sort({ feedbackDate: -1 })
+      .lean();
+
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      totalFeedback: feedback.length,
+      feedback: feedback.map(item => ({
+        date: item.feedbackDate,
+        userName: item.userName,
+        userEmail: item.userEmail,
+        rating: item.rating,
+        testResult: item.testResult,
+        comment: item.comment,
+        testId: item.testId
+      }))
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename=acqua_feedback_' + Date.now() + '.json');
+    res.json(exportData);
   } catch (error) {
     console.error('Export error:', error);
     res.status(500).json({ success: false, message: 'Export failed' });
@@ -843,10 +1055,14 @@ app.post('/api/hydration/test', authenticateToken, async (req, res) => {
       console.log(`✅ First test completed for ${user.email}. Time: ${Math.round(elapsedTime)} seconds`);
     }
 
+    // Send post-test survey email
+    sendPostTestSurveyEmail(user, newTest);
+
     res.json({
       success: true,
       message: 'Test recorded successfully',
       test: newTest,
+      testId: newTest._id,
       isFirstTest,
       timeToFirstTest: isFirstTest ? user.timeToFirstTest : null
     });
@@ -870,46 +1086,116 @@ app.get('/api/hydration/history', authenticateToken, async (req, res) => {
   }
 });
 
-// TEST EMAIL ENDPOINT - Add this after your other routes
-app.get('/api/test-email', async (req, res) => {
+// Helper function to send post-test survey email
+async function sendPostTestSurveyEmail(user, test) {
+  // Only send if email service is configured
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    console.log('⚠️ Email service not configured. Skipping survey email.');
+    return;
+  }
+
+  // Don't send if already sent for this test
+  if (test.surveyEmailSent) {
+    return;
+  }
+
   try {
-    console.log('🧪 Testing email configuration...');
-    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER);
-    console.log('🔑 EMAIL_PASSWORD length:', process.env.EMAIL_PASSWORD?.length);
+    const emailContent = emailTemplates.postTestSurvey(
+      user.fullName, 
+      user.email, 
+      test.hydrationLevel
+    );
     
-    const testEmail = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `"ACQUA Test" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_USER, // Send to yourself
-      subject: 'ACQUA Email Test - ' + new Date().toLocaleString(),
-      text: 'If you receive this email, your email configuration is working correctly!',
-      html: '<h1>✅ Success!</h1><p>Your ACQUA email system is configured correctly.</p>'
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
+      to: user.email,
+      subject: emailContent.subject,
+      text: emailContent.text
     });
 
-    console.log('✅ Test email sent!');
-    console.log('Message ID:', testEmail.messageId);
-    console.log('Response:', testEmail.response);
+    // Mark survey email as sent
+    test.surveyEmailSent = true;
+    test.surveyEmailSentDate = new Date();
+    await test.save();
+
+    console.log(`✅ Post-test survey email sent to ${user.email}`);
+  } catch (emailError) {
+    console.error('Error sending post-test survey email:', emailError);
+    // Don't throw error - test should still be saved even if email fails
+  }
+}
+
+// Submit rating for a test
+app.post('/api/hydration/rating', authenticateToken, async (req, res) => {
+  try {
+    const { rating, comment, testId } = req.body;
+
+    if (!rating || rating < 1 || rating > 6) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Valid rating (1-6) is required' 
+      });
+    }
+
+    // Get user info
+    const user = await User.findById(req.user.id);
+
+    // If testId is provided, update that specific test
+    // Otherwise, update the most recent test
+    let test;
+    
+    if (testId) {
+      test = await HydrationTest.findOne({ 
+        _id: testId, 
+        userId: req.user.id 
+      });
+    } else {
+      test = await HydrationTest.findOne({ userId: req.user.id })
+        .sort({ testDate: -1 });
+    }
+
+    if (!test) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Test not found' 
+      });
+    }
+
+    // Update test with rating
+    test.rating = rating;
+    test.ratingComment = comment || null;
+    test.ratingDate = new Date();
+    
+    await test.save();
+
+    // Create separate feedback record with user details
+    const feedback = new Feedback({
+      userId: user._id,
+      userName: user.fullName,
+      userEmail: user.email,
+      testId: test._id,
+      rating: rating,
+      comment: comment || null,
+      testResult: test.hydrationLevel,
+      feedbackDate: new Date()
+    });
+
+    await feedback.save();
+
+    console.log(`✅ Rating submitted: ${rating} stars by ${user.fullName} (${user.email})`);
 
     res.json({
       success: true,
-      message: 'Test email sent! Check your inbox (and spam folder)',
-      details: {
-        messageId: testEmail.messageId,
-        response: testEmail.response,
-        accepted: testEmail.accepted,
-        rejected: testEmail.rejected
+      message: 'Rating submitted successfully',
+      rating: {
+        rating: test.rating,
+        comment: test.ratingComment,
+        date: test.ratingDate
       }
     });
   } catch (error) {
-    console.error('❌ Test email failed:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Test email failed: ' + error.message,
-      error: {
-        name: error.name,
-        code: error.code,
-        command: error.command
-      }
-    });
+    console.error('Error submitting rating:', error);
+    res.status(500).json({ success: false, message: 'Failed to submit rating' });
   }
 });
 

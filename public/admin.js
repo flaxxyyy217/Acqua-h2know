@@ -1,6 +1,10 @@
+// Global variables
 let allUsers = [];
+let allFeedback = [];
+let filteredFeedback = [];
+let currentTab = 'users';
 
-// Load users on page load
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
   loadUsers();
   
@@ -8,9 +12,61 @@ document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('searchInput');
   searchInput.addEventListener('input', searchUsers);
   searchInput.addEventListener('keyup', searchUsers);
+
+  // Logout handler
+  const logoutBtn = document.getElementById('logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      if (confirm('Are you sure you want to logout?')) {
+        try {
+          const response = await fetch('/api/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const data = await response.json();
+          if (data.success) {
+            window.location.href = data.redirectUrl;
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          window.location.href = '/';
+        }
+      }
+    });
+  }
 });
 
-// Load all users
+// ===== TAB SWITCHING =====
+
+function switchTab(tab) {
+  currentTab = tab;
+  
+  // Update tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  event.target.classList.add('active');
+  
+  // Update tab content
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+  
+  if (tab === 'users') {
+    document.getElementById('usersTab').classList.add('active');
+  } else if (tab === 'feedback') {
+    document.getElementById('feedbackTab').classList.add('active');
+    // Load feedback if not already loaded
+    if (allFeedback.length === 0) {
+      loadFeedback();
+      loadFeedbackStats();
+    }
+  }
+}
+
+// ===== USER MANAGEMENT FUNCTIONS =====
+
 async function loadUsers() {
   const container = document.getElementById('tableContainer');
   container.innerHTML = '<div class="loading">📊 Loading users...</div>';
@@ -46,7 +102,6 @@ async function loadUsers() {
   }
 }
 
-// Display users in table
 function displayUsers(users) {
   const container = document.getElementById('tableContainer');
   
@@ -125,7 +180,6 @@ function displayUsers(users) {
   container.innerHTML = html;
 }
 
-// Escape HTML to prevent XSS
 function escapeHtml(text) {
   const map = {
     '&': '&amp;',
@@ -137,11 +191,9 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Update statistics
 function updateStats(users) {
   document.getElementById('totalUsers').textContent = users.length;
   
-  // Calculate new users in last 7 days
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   
@@ -151,17 +203,14 @@ function updateStats(users) {
   
   document.getElementById('newUsers').textContent = newUsers;
   
-  // Total tests
   const totalTests = users.reduce((sum, user) => 
     sum + (user.hydrationResults?.length || 0), 0
   );
   document.getElementById('totalTests').textContent = totalTests;
   
-  // Average hydration (placeholder)
   document.getElementById('avgHydration').textContent = 'N/A';
 }
 
-// Search users
 function searchUsers() {
   const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
   
@@ -178,7 +227,6 @@ function searchUsers() {
   displayUsers(filtered);
 }
 
-// Reset password with email option
 async function resetPassword(userId, email) {
   const sendEmail = confirm(`Reset password for ${email}?\n\nSend email notification to user?`);
   
@@ -189,14 +237,8 @@ async function resetPassword(userId, email) {
   try {
     const response = await fetch('/api/admin/reset-password', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        userId, 
-        newPassword: tempPassword,
-        sendEmail: sendEmail
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, newPassword: tempPassword, sendEmail })
     });
 
     const data = await response.json();
@@ -220,7 +262,6 @@ async function resetPassword(userId, email) {
       
       alert(message);
       
-      // Copy to clipboard
       if (navigator.clipboard && !data.emailSent) {
         navigator.clipboard.writeText(data.tempPassword).then(() => {
           showSuccess('✓ Password copied to clipboard!');
@@ -237,7 +278,6 @@ async function resetPassword(userId, email) {
   }
 }
 
-// Send custom email to user
 async function sendEmailToUser(userId, email, userName) {
   const subject = prompt('Email Subject:', 'Important Update from ACQUA');
   if (!subject) return;
@@ -252,14 +292,8 @@ async function sendEmailToUser(userId, email, userName) {
 
     const response = await fetch('/api/admin/send-email', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        userId, 
-        subject, 
-        message 
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, subject, message })
     });
 
     const data = await response.json();
@@ -275,7 +309,6 @@ async function sendEmailToUser(userId, email, userName) {
   }
 }
 
-// Send bulk email to all users
 async function sendBulkEmail() {
   if (allUsers.length === 0) {
     showError('No users available');
@@ -297,14 +330,8 @@ async function sendBulkEmail() {
 
     const response = await fetch('/api/admin/send-bulk-email', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        userIds, 
-        subject, 
-        message 
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds, subject, message })
     });
 
     const data = await response.json();
@@ -335,7 +362,6 @@ async function sendBulkEmail() {
   }
 }
 
-// Export to CSV
 async function exportCSV() {
   try {
     showInfo('Generating CSV file...');
@@ -348,7 +374,6 @@ async function exportCSV() {
     
     const blob = await response.blob();
     
-    // Create download link
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -365,7 +390,6 @@ async function exportCSV() {
   }
 }
 
-// Export to JSON
 async function exportJSON() {
   try {
     showInfo('Generating JSON file...');
@@ -373,7 +397,6 @@ async function exportJSON() {
     const response = await fetch('/api/admin/export/json');
     const data = await response.json();
     
-    // Create download link
     const dataStr = JSON.stringify(data, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
@@ -392,7 +415,151 @@ async function exportJSON() {
   }
 }
 
-// Show notifications
+// ===== FEEDBACK MANAGEMENT FUNCTIONS =====
+
+async function loadFeedback() {
+  const loading = document.getElementById('feedbackLoading');
+  const tableWrapper = document.querySelector('.feedback-table .table-wrapper');
+  const noData = document.getElementById('noData');
+  
+  loading.style.display = 'block';
+  tableWrapper.style.display = 'none';
+  noData.style.display = 'none';
+  
+  try {
+    const response = await fetch('/api/admin/feedback');
+    const data = await response.json();
+    
+    if (data.success) {
+      allFeedback = data.feedback;
+      filteredFeedback = allFeedback;
+      displayFeedback(filteredFeedback);
+    } else {
+      showError('Failed to load feedback');
+      loading.textContent = 'Failed to load feedback';
+      loading.style.color = '#ef4444';
+    }
+  } catch (error) {
+    console.error('Error loading feedback:', error);
+    showError('Error loading feedback');
+    loading.textContent = 'Error loading feedback';
+    loading.style.color = '#ef4444';
+  }
+}
+
+async function loadFeedbackStats() {
+  try {
+    const response = await fetch('/api/admin/feedback/stats');
+    const data = await response.json();
+    
+    if (data.success) {
+      const stats = data.stats;
+      
+      document.getElementById('totalFeedback').textContent = stats.totalFeedback;
+      document.getElementById('avgRating').textContent = stats.averageRating;
+      document.getElementById('withComments').textContent = stats.feedbackWithComments;
+      
+      // Calculate satisfaction rate (4+ stars)
+      const satisfiedCount = stats.ratingDistribution
+        .filter(r => r._id >= 4)
+        .reduce((sum, r) => sum + r.count, 0);
+      const satisfactionRate = stats.totalFeedback > 0 
+        ? Math.round((satisfiedCount / stats.totalFeedback) * 100) 
+        : 0;
+      document.getElementById('satisfactionRate').textContent = satisfactionRate + '%';
+    }
+  } catch (error) {
+    console.error('Error loading stats:', error);
+  }
+}
+
+function displayFeedback(feedback) {
+  const loading = document.getElementById('feedbackLoading');
+  const tableWrapper = document.querySelector('.feedback-table .table-wrapper');
+  const tbody = document.getElementById('feedbackTableBody');
+  const noData = document.getElementById('noData');
+  
+  loading.style.display = 'none';
+  
+  if (feedback.length === 0) {
+    tableWrapper.style.display = 'none';
+    noData.style.display = 'block';
+    return;
+  }
+  
+  noData.style.display = 'none';
+  tableWrapper.style.display = 'block';
+  tbody.innerHTML = '';
+  
+  feedback.forEach(item => {
+    const row = document.createElement('tr');
+    
+    const date = new Date(item.feedbackDate).toLocaleString();
+    const stars = '⭐'.repeat(item.rating);
+    const comment = item.comment || '<em style="color: rgba(148, 163, 184, 0.6);">No comment</em>';
+    
+    row.innerHTML = `
+      <td>${date}</td>
+      <td>${item.userName}</td>
+      <td>${item.userEmail}</td>
+      <td class="rating-stars">${stars} (${item.rating})</td>
+      <td>${item.testResult || 'N/A'}</td>
+      <td class="comment-cell" title="${item.comment || ''}">${comment}</td>
+    `;
+    
+    tbody.appendChild(row);
+  });
+}
+
+function filterFeedback() {
+  const ratingFilter = document.getElementById('ratingFilter').value;
+  const commentFilter = document.getElementById('commentFilter').value;
+  
+  filteredFeedback = allFeedback.filter(item => {
+    // Rating filter
+    if (ratingFilter !== 'all' && item.rating !== parseInt(ratingFilter)) {
+      return false;
+    }
+    
+    // Comment filter
+    if (commentFilter === 'with' && (!item.comment || item.comment.trim() === '')) {
+      return false;
+    }
+    if (commentFilter === 'without' && item.comment && item.comment.trim() !== '') {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  displayFeedback(filteredFeedback);
+}
+
+function refreshFeedback() {
+  const loading = document.getElementById('feedbackLoading');
+  const tableWrapper = document.querySelector('.feedback-table .table-wrapper');
+  
+  loading.style.display = 'block';
+  tableWrapper.style.display = 'none';
+  
+  loadFeedback();
+  loadFeedbackStats();
+}
+
+function exportFeedbackCSV() {
+  showInfo('Generating CSV file...');
+  window.location.href = '/api/admin/export/feedback-csv';
+  setTimeout(() => showSuccess('✓ CSV export started!'), 500);
+}
+
+function exportFeedbackJSON() {
+  showInfo('Generating JSON file...');
+  window.location.href = '/api/admin/export/feedback-json';
+  setTimeout(() => showSuccess('✓ JSON export started!'), 500);
+}
+
+// ===== NOTIFICATION FUNCTIONS =====
+
 function showNotification(message, type = 'info') {
   const colors = {
     success: '#10b981',
