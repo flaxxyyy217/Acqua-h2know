@@ -237,9 +237,12 @@ app.get('/signup', redirectIfAuthenticated, (req, res) => {
 // API ROUTES - AUTHENTICATION
 app.post('/api/signup', async (req, res) => {
   try {
+    console.log('Signup attempt:', { email: req.body.email, fullName: req.body.fullName });
+    
     const { fullName, email, password } = req.body;
 
     if (!fullName || !email || !password) {
+      console.log('Signup failed: Missing fields');
       return res.status(400).json({ 
         success: false, 
         message: 'All fields are required' 
@@ -247,14 +250,17 @@ app.post('/api/signup', async (req, res) => {
     }
 
     if (password.length < 6) {
+      console.log('Signup failed: Password too short');
       return res.status(400).json({ 
         success: false, 
         message: 'Password must be at least 6 characters' 
       });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    
     if (existingUser) {
+      console.log('Signup failed: Email already exists:', email);
       return res.status(400).json({ 
         success: false, 
         message: 'Email already registered' 
@@ -264,12 +270,14 @@ app.post('/api/signup', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
-      fullName,
-      email,
+      fullName: fullName.trim(),
+      email: email.toLowerCase().trim(),
       password: hashedPassword
     });
 
     await newUser.save();
+    
+    console.log('✅ User created:', email);
 
     const token = jwt.sign(
       { id: newUser._id, email: newUser.email, fullName: newUser.fullName },
@@ -280,7 +288,8 @@ app.post('/api/signup', async (req, res) => {
     res.cookie('token', token, { 
       httpOnly: true, 
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: 'strict'
+      sameSite: 'strict',
+      secure: isProduction
     });
 
     res.json({ 
@@ -300,17 +309,22 @@ app.post('/api/signup', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   try {
+    console.log('Login attempt:', { email: req.body.email, hasPassword: !!req.body.password });
+    
     const { email, password } = req.body;
 
     if (!email || !password) {
+      console.log('Login failed: Missing credentials');
       return res.status(400).json({ 
         success: false, 
         message: 'Email and password are required' 
       });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    
     if (!user) {
+      console.log('Login failed: User not found:', email);
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid email or password' 
@@ -318,7 +332,9 @@ app.post('/api/login', async (req, res) => {
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    
     if (!isPasswordValid) {
+      console.log('Login failed: Invalid password for:', email);
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid email or password' 
@@ -334,8 +350,11 @@ app.post('/api/login', async (req, res) => {
     res.cookie('token', token, { 
       httpOnly: true, 
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: 'strict'
+      sameSite: 'strict',
+      secure: isProduction
     });
+
+    console.log('✅ Login successful:', email);
 
     res.json({ 
       success: true, 
@@ -364,6 +383,8 @@ app.post('/api/logout', (req, res) => {
 // Forgot Password - Send reset email
 app.post('/api/forgot-password', async (req, res) => {
   try {
+    console.log('Forgot password request received:', req.body);
+    
     const { email } = req.body;
 
     if (!email) {
@@ -373,9 +394,11 @@ app.post('/api/forgot-password', async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    
     if (!user) {
-      // Don't reveal if email exists for security
+      // Don't reveal if email exists for security, but still return success
+      console.log('Email not found:', email);
       return res.json({ 
         success: true, 
         message: 'If that email exists, a reset link has been sent.' 
@@ -383,39 +406,56 @@ app.post('/api/forgot-password', async (req, res) => {
     }
 
     // Generate temporary password
-    const tempPassword = 'temp' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    const tempPassword = 'Temp' + Math.random().toString(36).substring(2, 10).toUpperCase() + '!1';
+    
+    console.log('Generated temp password for:', user.email);
     
     // Hash and save new password
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const oldPassword = user.password; // Store old password in case email fails
+    
     user.password = hashedPassword;
     await user.save();
 
-    // Send email
-    try {
-      const emailContent = emailTemplates.passwordReset(user.email, tempPassword);
+    // Send email only if email service is configured
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+      try {
+        const emailContent = emailTemplates.passwordReset(user.email, tempPassword);
+        
+        await transporter.sendMail({
+          from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
+          to: user.email,
+          subject: emailContent.subject,
+          text: emailContent.text
+        });
+
+        console.log(`✅ Password reset email sent to ${user.email}`);
+
+        res.json({ 
+          success: true, 
+          message: 'Password reset email sent successfully. Please check your inbox.' 
+        });
+      } catch (emailError) {
+        console.error('Email send error:', emailError);
+        
+        // Revert password change if email fails
+        user.password = oldPassword;
+        await user.save();
+        
+        res.status(500).json({ 
+          success: false, 
+          message: 'Failed to send reset email. Email service may not be configured properly.' 
+        });
+      }
+    } else {
+      // Email not configured - for development/testing
+      console.log('⚠️ Email service not configured. New password:', tempPassword);
       
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
-        to: user.email,
-        subject: emailContent.subject,
-        text: emailContent.text
-      });
-
-      console.log(`✅ Password reset email sent to ${user.email}`);
-
       res.json({ 
         success: true, 
-        message: 'Password reset email sent successfully. Please check your inbox.' 
-      });
-    } catch (emailError) {
-      console.error('Email send error:', emailError);
-      
-      // Revert password change if email fails
-      await User.findByIdAndUpdate(user._id, { password: user.password });
-      
-      res.status(500).json({ 
-        success: false, 
-        message: 'Failed to send reset email. Please try again later or contact support.' 
+        message: 'Password reset. (Email service not configured - check server logs for new password)',
+        // In production, remove this:
+        devPassword: tempPassword 
       });
     }
 
