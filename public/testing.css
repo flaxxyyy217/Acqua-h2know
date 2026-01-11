@@ -400,3 +400,99 @@ canvas {
     font-size: 2.5rem;
   }
 }
+
+    #timerDisplay {
+      position: fixed;
+      top: 90px;
+      right: 30px;
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.95) 0%, rgba(245, 158, 11, 0.95) 100%);
+      padding: 20px 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(251, 191, 36, 0.4);
+      z-index: 999;
+      border: 2px solid rgba(251, 191, 36, 0.5);
+      backdrop-filter: blur(10px);
+      animation: slideInRight 0.5s ease, pulse 2s ease-in-out infinite;
+      display: none;
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(100px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+        transform: scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 10px 40px rgba(251, 191, 36, 0.4);
+      }
+      50% {
+        box-shadow: 0 10px 50px rgba(251, 191, 36, 0.6);
+      }
+    }
+
+    #timerDisplay .timer-icon {
+      font-size: 2rem;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    #timerDisplay h3 {
+      color: white;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    #timerDisplay #timerValue {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: white;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      letter-spacing: 3px;
+    }
+
+    #timerDisplay .timer-label {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 0.75rem;
+      text-align: center;
+      margin-top: 5px;
+      font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+      #timerDisplay {
+        right: 15px;
+        top: 80px;
+        padding: 15px 20px;
+      }
+
+      #timerDisplay #timerValue {
+        font-size: 2rem;
+      }
+
+      #timerDisplay h3 {
+        font-size: 0.8rem;
+      }
+    }

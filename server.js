@@ -50,6 +50,18 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  firstTestCompleted: {
+    type: Boolean,
+    default: false
+  },
+  timeToFirstTest: {
+    type: Number, // Time in seconds
+    default: null
+  },
+  firstTestDate: {
+    type: Date,
+    default: null
   }
 });
 
@@ -75,7 +87,11 @@ const hydrationTestSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  notes: String
+  notes: String,
+  isFirstTest: {
+    type: Boolean,
+    default: false
+  }
 });
 
 const HydrationTest = mongoose.model('HydrationTest', hydrationTestSchema);
@@ -93,7 +109,7 @@ const transporter = nodemailer.createTransport({
 transporter.verify((error, success) => {
   if (error) {
     console.log('❌ Email configuration error:', error);
-    console.log('⚠️  Password reset emails will not work!');
+    console.log('⚠️ Password reset emails will not work!');
     console.log('Please check your EMAIL_USER and EMAIL_PASSWORD in .env file');
   } else {
     console.log('✅ Email server is ready to send emails');
@@ -103,122 +119,70 @@ transporter.verify((error, success) => {
 // Email templates
 const emailTemplates = {
   passwordReset: (email, tempPassword) => ({
-    subject: '🔒 Your Password Has Been Reset - ACQUA',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #3b82f6, #0ea5e9); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-          .password-box { background: white; border: 2px solid #3b82f6; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }
-          .password { font-size: 24px; font-weight: bold; color: #3b82f6; letter-spacing: 2px; }
-          .button { background: linear-gradient(135deg, #3b82f6, #0ea5e9); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; margin: 20px 0; }
-          .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
-          .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>💧 ACQUA</h1>
-            <p>Password Reset Notification</p>
-          </div>
-          <div class="content">
-            <h2>Hello!</h2>
-            <p>Your password has been reset. Here are your new login credentials:</p>
-            
-            <div class="password-box">
-              <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Temporary Password:</strong></p>
-              <p class="password">${tempPassword}</p>
-            </div>
+    subject: 'Password Reset - ACQUA Hydration System',
+    text: `
+ACQUA HYDRATION MONITORING SYSTEM
+Password Reset Notification
+========================================
 
-            <div class="warning">
-              <strong>⚠️ Important Security Notice:</strong>
-              <ul>
-                <li>This is a temporary password</li>
-                <li>Please change it immediately after logging in</li>
-                <li>Never share your password with anyone</li>
-                <li>If you didn't request this reset, contact support immediately</li>
-              </ul>
-            </div>
+Dear User,
 
-            <div style="text-align: center;">
-              <a href="${process.env.SITE_URL || 'https://acqua-h2know-1.onrender.com'}" class="button">
-                Login to ACQUA
-              </a>
-            </div>
+Your password has been successfully reset. Please use the credentials below to access your account:
 
-            <p>After logging in with this temporary password, please:</p>
-            <ol>
-              <li>Go to your account settings</li>
-              <li>Change your password to something secure</li>
-              <li>Use a combination of letters, numbers, and symbols</li>
-            </ol>
+Email: ${email}
+Temporary Password: ${tempPassword}
 
-            <p>If you have any questions or concerns, please don't hesitate to contact our support team.</p>
+IMPORTANT SECURITY NOTICE:
+- This is a temporary password for security purposes
+- Please change it immediately after logging in
+- Never share your password with anyone
+- If you did not request this reset, contact support immediately at support@acqua.com
 
-            <p>Best regards,<br><strong>The ACQUA Team</strong></p>
-          </div>
-          <div class="footer">
-            <p>This is an automated message from ACQUA Hydration Monitoring System</p>
-            <p>© 2026 ACQUA. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
+NEXT STEPS:
+1. Visit: ${process.env.SITE_URL || 'https://acqua-h2know-1.onrender.com'}
+2. Log in with your temporary password
+3. Go to Account Settings
+4. Change your password to something secure
+5. Use a combination of letters, numbers, and symbols for strong security
+
+For assistance or questions, please contact our support team.
+
+Best regards,
+The ACQUA Team
+
+________________________________________
+This is an automated message from ACQUA Hydration Monitoring System
+Please do not reply to this email
+© 2026 ACQUA. All rights reserved.
     `
   }),
 
   customMessage: (subject, message, userName) => ({
     subject: subject,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #3b82f6, #0ea5e9); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-          .message-box { background: white; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0; }
-          .button { background: linear-gradient(135deg, #3b82f6, #0ea5e9); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; margin: 20px 0; }
-          .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>💧 ACQUA</h1>
-            <p>Important Message</p>
-          </div>
-          <div class="content">
-            <h2>Hello ${userName}!</h2>
-            
-            <div class="message-box">
-              ${message.replace(/\n/g, '<br>')}
-            </div>
+    text: `
+ACQUA HYDRATION MONITORING SYSTEM
+${subject}
+========================================
 
-            <div style="text-align: center;">
-              <a href="${process.env.SITE_URL || 'https://acqua-h2know-1.onrender.com'}" class="button">
-                Visit ACQUA
-              </a>
-            </div>
+Dear ${userName},
 
-            <p>If you have any questions, please contact our support team.</p>
+${message}
 
-            <p>Best regards,<br><strong>The ACQUA Team</strong></p>
-          </div>
-          <div class="footer">
-            <p>This is an automated message from ACQUA Hydration Monitoring System</p>
-            <p>© 2026 ACQUA. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
+________________________________________
+
+If you have any questions or need assistance, please contact our support team.
+
+Best regards,
+The ACQUA Team
+
+ACQUA Hydration Monitoring System
+Website: ${process.env.SITE_URL || 'https://acqua-h2know-1.onrender.com'}
+Support: support@acqua.com
+
+________________________________________
+This is an automated message from ACQUA Hydration Monitoring System
+Please do not reply to this email
+© 2026 ACQUA. All rights reserved.
     `
   })
 };
@@ -434,7 +398,7 @@ app.post('/api/forgot-password', async (req, res) => {
         from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
         to: user.email,
         subject: emailContent.subject,
-        html: emailContent.html
+        text: emailContent.text
       });
 
       console.log(`✅ Password reset email sent to ${user.email}`);
@@ -507,7 +471,7 @@ app.post('/api/admin/reset-password', authenticateToken, async (req, res) => {
           from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
           to: user.email,
           subject: emailContent.subject,
-          html: emailContent.html
+          text: emailContent.text
         });
 
         console.log(`✅ Password reset email sent to ${user.email}`);
@@ -572,7 +536,7 @@ app.post('/api/admin/send-email', authenticateToken, async (req, res) => {
       from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
       to: user.email,
       subject: emailContent.subject,
-      html: emailContent.html
+      text: emailContent.text
     });
 
     console.log(`✅ Custom email sent to ${user.email}`);
@@ -632,7 +596,7 @@ app.post('/api/admin/send-bulk-email', authenticateToken, async (req, res) => {
           from: process.env.EMAIL_FROM || '"ACQUA System" <noreply@acqua.com>',
           to: user.email,
           subject: emailContent.subject,
-          html: emailContent.html
+          text: emailContent.text
         });
 
         results.success.push(user.email);
@@ -688,6 +652,22 @@ app.get('/api/user', authenticateToken, async (req, res) => {
   }
 });
 
+// NEW: Check if user needs timer (first test not completed)
+app.get('/api/user/timer-status', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('firstTestCompleted timeToFirstTest createdAt');
+    
+    res.json({ 
+      success: true, 
+      needsTimer: !user.firstTestCompleted,
+      accountCreatedAt: user.createdAt,
+      timeToFirstTest: user.timeToFirstTest
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Admin Dashboard Route (Protected)
 app.get('/admin', authenticateToken, async (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
@@ -722,11 +702,12 @@ app.get('/api/admin/export/csv', authenticateToken, async (req, res) => {
   try {
     const users = await User.find().select('-password').lean();
     
-    let csv = 'Full Name,Email,Account Created,Last Login,Total Tests,Last Test Result,Hydration Status\n';
+    let csv = 'Full Name,Email,Account Created,Last Login,Total Tests,Last Test Result,Hydration Status,Time to First Test (seconds)\n';
     
     users.forEach(user => {
       const createdDate = new Date(user.createdAt).toLocaleDateString();
-      csv += `"${user.fullName}","${user.email}","${createdDate}","N/A","0","N/A","N/A"\n`;
+      const timeToFirstTest = user.timeToFirstTest || 'N/A';
+      csv += `"${user.fullName}","${user.email}","${createdDate}","N/A","0","N/A","N/A","${timeToFirstTest}"\n`;
     });
 
     res.setHeader('Content-Type', 'text/csv');
@@ -753,7 +734,9 @@ app.get('/api/admin/export/json', authenticateToken, async (req, res) => {
         totalTests: 0,
         lastTestResult: 'N/A',
         hydrationStatus: 'N/A',
-        testHistory: []
+        testHistory: [],
+        timeToFirstTest: user.timeToFirstTest || null,
+        firstTestCompleted: user.firstTestCompleted || false
       }))
     };
 
@@ -769,21 +752,39 @@ app.get('/api/admin/export/json', authenticateToken, async (req, res) => {
 // API to add hydration test
 app.post('/api/hydration/test', authenticateToken, async (req, res) => {
   try {
-    const { hydrationLevel, sensorReading, notes } = req.body;
+    const { hydrationLevel, sensorReading, notes, elapsedTime } = req.body;
+
+    const user = await User.findById(req.user.id);
+    
+    // Check if this is the first test
+    const isFirstTest = !user.firstTestCompleted;
 
     const newTest = new HydrationTest({
       userId: req.user.id,
       hydrationLevel,
       sensorReading,
-      notes
+      notes,
+      isFirstTest
     });
 
     await newTest.save();
 
+    // Update user if this is their first test
+    if (isFirstTest && elapsedTime) {
+      user.firstTestCompleted = true;
+      user.timeToFirstTest = Math.round(elapsedTime); // Store in seconds
+      user.firstTestDate = new Date();
+      await user.save();
+      
+      console.log(`✅ First test completed for ${user.email}. Time: ${Math.round(elapsedTime)} seconds`);
+    }
+
     res.json({
       success: true,
       message: 'Test recorded successfully',
-      test: newTest
+      test: newTest,
+      isFirstTest,
+      timeToFirstTest: isFirstTest ? user.timeToFirstTest : null
     });
   } catch (error) {
     console.error('Error saving test:', error);
@@ -814,6 +815,6 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 5500;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${isProduction ? 'Production' : 'Development'}`);
+  console.log(`🌐 Environment: ${isProduction ? 'Production' : 'Development'}`);
   console.log(`🔗 URL: ${process.env.SITE_URL || 'http://localhost:' + PORT}`);
 });

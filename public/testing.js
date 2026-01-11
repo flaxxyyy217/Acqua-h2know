@@ -1,239 +1,418 @@
- let hydrationHistory = [];
-    let chart;
-    let bluetoothDevice;
-    let characteristic;
+// Timer variables
+let timerInterval;
+let startTime;
+let elapsedSeconds = 0;
+let isFirstTest = true;
 
-    function initChart() {
-      const ctx = document.getElementById('hydrationChart').getContext('2d');
-      chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Hydration Level (%)',
-            data: [],
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            borderWidth: 3,
-            tension: 0.4,
-            fill: true,
-            pointRadius: 6,
-            pointHoverRadius: 8,
-            pointBackgroundColor: '#3b82f6',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              labels: { color: 'white', font: { size: 14 } }
-            },
-            tooltip: {
-              backgroundColor: 'rgba(17, 24, 39, 0.95)',
-              titleColor: 'white',
-              bodyColor: 'rgba(203, 213, 225, 0.95)',
-              borderColor: 'rgba(59, 130, 246, 0.5)',
-              borderWidth: 1,
-              padding: 12,
-              displayColors: false
-            }
+// Initialize timer on page load
+async function initializeTimer() {
+  try {
+    const response = await fetch('/api/user/timer-status');
+    const data = await response.json();
+    
+    if (data.success && data.needsTimer) {
+      isFirstTest = true;
+      startTime = new Date(data.accountCreatedAt).getTime();
+      
+      // Show timer
+      document.getElementById('timerDisplay').style.display = 'block';
+      
+      // Start counting
+      startTimer();
+    } else {
+      isFirstTest = false;
+      document.getElementById('timerDisplay').style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Error checking timer status:', error);
+  }
+}
+
+function startTimer() {
+  updateTimerDisplay();
+  timerInterval = setInterval(updateTimerDisplay, 1000);
+}
+
+function updateTimerDisplay() {
+  const now = Date.now();
+  elapsedSeconds = Math.floor((now - startTime) / 1000);
+  
+  const hours = Math.floor(elapsedSeconds / 3600);
+  const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+  const seconds = elapsedSeconds % 60;
+  
+  const timerElement = document.getElementById('timerValue');
+  if (timerElement) {
+    timerElement.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  
+  // Hide timer with fade out
+  const timerDisplay = document.getElementById('timerDisplay');
+  if (timerDisplay) {
+    timerDisplay.style.animation = 'fadeOut 0.5s ease';
+    setTimeout(() => {
+      timerDisplay.style.display = 'none';
+    }, 500);
+  }
+}
+
+// Bluetooth connection
+let bluetoothDevice;
+let characteristic;
+
+async function connectBluetooth() {
+  const statusIndicator = document.getElementById('statusIndicator');
+  const statusText = document.getElementById('statusText');
+  const connectBtn = document.getElementById('connectBtn');
+  
+  try {
+    statusText.textContent = 'Connecting...';
+    statusIndicator.querySelector('.status-dot').className = 'status-dot connecting';
+    connectBtn.disabled = true;
+    
+    // Request Bluetooth device
+    bluetoothDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ services: ['battery_service'] }],
+      optionalServices: ['battery_service']
+    });
+    
+    const server = await bluetoothDevice.gatt.connect();
+    const service = await server.getPrimaryService('battery_service');
+    characteristic = await service.getCharacteristic('battery_level');
+    
+    // Connected
+    statusText.textContent = 'Connected';
+    statusIndicator.querySelector('.status-dot').className = 'status-dot connected';
+    connectBtn.textContent = 'Disconnect';
+    connectBtn.disabled = false;
+    connectBtn.onclick = disconnectBluetooth;
+    
+    // Show device data
+    document.getElementById('deviceData').style.display = 'block';
+    
+    // Start reading data
+    startDataPolling();
+    
+  } catch (error) {
+    console.error('Bluetooth connection error:', error);
+    statusText.textContent = 'Connection Failed';
+    statusIndicator.querySelector('.status-dot').className = 'status-dot disconnected';
+    connectBtn.disabled = false;
+    alert('Failed to connect to device. Please try again.');
+  }
+}
+
+function disconnectBluetooth() {
+  if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+    bluetoothDevice.gatt.disconnect();
+  }
+  
+  const statusIndicator = document.getElementById('statusIndicator');
+  const statusText = document.getElementById('statusText');
+  const connectBtn = document.getElementById('connectBtn');
+  
+  statusText.textContent = 'Disconnected';
+  statusIndicator.querySelector('.status-dot').className = 'status-dot disconnected';
+  connectBtn.textContent = 'Connect Device';
+  connectBtn.onclick = connectBluetooth;
+  
+  document.getElementById('deviceData').style.display = 'none';
+  stopDataPolling();
+}
+
+// Data polling
+let dataPollingInterval;
+
+function startDataPolling() {
+  dataPollingInterval = setInterval(async () => {
+    if (characteristic) {
+      try {
+        const value = await characteristic.readValue();
+        updateDeviceData(value.getUint8(0));
+      } catch (error) {
+        console.error('Error reading data:', error);
+      }
+    }
+  }, 2000);
+}
+
+function stopDataPolling() {
+  if (dataPollingInterval) {
+    clearInterval(dataPollingInterval);
+  }
+}
+
+// Simulate data (for demo without actual device)
+function simulateTest() {
+  const randomData = {
+    color: Math.floor(Math.random() * 8) + 1,
+    frequency: Math.floor(Math.random() * 10) + 1,
+    volume: Math.floor(Math.random() * 500) + 100
+  };
+  
+  updateDeviceData(randomData.color);
+  analyzeHydration(randomData);
+}
+
+function updateDeviceData(colorValue) {
+  document.getElementById('colorValue').textContent = colorValue;
+  document.getElementById('frequencyValue').textContent = Math.floor(Math.random() * 10) + ' times/day';
+  document.getElementById('volumeValue').textContent = Math.floor(Math.random() * 500) + 100 + ' ml';
+}
+
+async function analyzeHydration(data) {
+  const indicator = document.getElementById('indicator');
+  const result = document.getElementById('result');
+  const statusTitle = document.getElementById('statusTitle');
+  const statusMessage = document.getElementById('statusMessage');
+  
+  let level, percentage, message;
+  
+  if (data.color <= 2) {
+    level = 'Severely Dehydrated';
+    percentage = 15;
+    message = '🚨 Critical! You are severely dehydrated. Drink water immediately and consult a healthcare professional.';
+  } else if (data.color <= 4) {
+    level = 'Dehydrated';
+    percentage = 35;
+    message = '⚠️ You are dehydrated. Increase your water intake significantly.';
+  } else if (data.color <= 6) {
+    level = 'Slightly Dehydrated';
+    percentage = 60;
+    message = '💧 Your hydration is below optimal. Try to drink more water throughout the day.';
+  } else {
+    level = 'Well Hydrated';
+    percentage = 85;
+    message = '✅ Excellent! You are well hydrated. Keep up the good work!';
+  }
+  
+  indicator.style.left = percentage + '%';
+  statusTitle.textContent = level;
+  statusMessage.textContent = message;
+  result.classList.add('show');
+  
+  // Save to database
+  try {
+    const response = await fetch('/api/hydration/test', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        hydrationLevel: level,
+        sensorReading: data.color,
+        notes: `Frequency: ${data.frequency}, Volume: ${data.volume}ml`,
+        elapsedTime: isFirstTest ? elapsedSeconds : null
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('Test saved successfully');
+      
+      // If this was the first test, stop timer and show completion
+      if (result.isFirstTest) {
+        stopTimer();
+        isFirstTest = false;
+        
+        const formattedTime = formatTime(result.timeToFirstTest);
+        showMessage(`🎉 First test completed in ${formattedTime}!`, 'success');
+      }
+      
+      updateChart(level);
+    }
+  } catch (error) {
+    console.error('Error saving test:', error);
+  }
+}
+
+function formatTime(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  } else {
+    return `${secs}s`;
+  }
+}
+
+// Chart setup
+let hydrationChart;
+
+function initChart() {
+  const ctx = document.getElementById('hydrationChart');
+  if (!ctx) return;
+  
+  hydrationChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Hydration Level',
+        data: [],
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            color: 'rgba(255, 255, 255, 0.7)'
           },
-          scales: {
-            y: {
-              beginAtZero: true,
-              max: 100,
-              grid: { color: 'rgba(59, 130, 246, 0.1)' },
-              ticks: { 
-                color: 'rgba(148, 163, 184, 1)',
-                callback: function(value) { return value + '%'; }
-              }
-            },
-            x: {
-              grid: { color: 'rgba(59, 130, 246, 0.1)' },
-              ticks: { color: 'rgba(148, 163, 184, 1)' }
-            }
+          grid: {
+            color: 'rgba(255, 255, 255, 0.1)'
+          }
+        },
+        x: {
+          ticks: {
+            color: 'rgba(255, 255, 255, 0.7)'
+          },
+          grid: {
+            color: 'rgba(255, 255, 255, 0.1)'
           }
         }
-      });
+      }
     }
+  });
+}
 
-    async function connectBluetooth() {
-      if (!navigator.bluetooth) {
-        alert('Web Bluetooth API is not available in this browser. Please use Chrome, Edge, or Opera on desktop/Android.');
+function updateChart(level) {
+  if (!hydrationChart) return;
+  
+  const now = new Date();
+  const timeLabel = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  
+  const levelValues = {
+    'Well Hydrated': 90,
+    'Slightly Dehydrated': 60,
+    'Dehydrated': 35,
+    'Severely Dehydrated': 15
+  };
+  
+  hydrationChart.data.labels.push(timeLabel);
+  hydrationChart.data.datasets[0].data.push(levelValues[level]);
+  
+  if (hydrationChart.data.labels.length > 10) {
+    hydrationChart.data.labels.shift();
+    hydrationChart.data.datasets[0].data.shift();
+  }
+  
+  hydrationChart.update();
+}
+
+// Load Chart.js
+function loadChartJS() {
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+  script.onload = initChart;
+  document.head.appendChild(script);
+}
+
+// Message display
+function showMessage(message, type = 'info') {
+  const colors = {
+    success: '#10b981',
+    error: '#ef4444',
+    info: '#3b82f6'
+  };
+  
+  const alertDiv = document.createElement('div');
+  alertDiv.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    background: ${colors[type] || colors.info};
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 10000;
+    animation: slideIn 0.3s ease;
+  `;
+  alertDiv.textContent = message;
+  document.body.appendChild(alertDiv);
+
+  setTimeout(() => {
+    alertDiv.remove();
+  }, 4000);
+}
+
+// Add demo test button
+function addDemoButton() {
+  const connectBtn = document.getElementById('connectBtn');
+  const demoBtn = document.createElement('button');
+  demoBtn.className = 'btn-test';
+  demoBtn.textContent = 'Simulate Test (Demo)';
+  demoBtn.style.marginTop = '10px';
+  demoBtn.onclick = simulateTest;
+  connectBtn.parentNode.insertBefore(demoBtn, connectBtn.nextSibling);
+}
+
+// Initialize everything
+document.addEventListener('DOMContentLoaded', function() {
+  loadChartJS();
+  addDemoButton();
+  initializeTimer();
+  
+  // Load logout handler
+  const logoutBtn = document.getElementById('logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      
+      if (!confirm('Are you sure you want to logout?')) {
         return;
       }
 
       try {
-        // Update status
-        updateStatus('connecting', 'Connecting...');
-        
-        // Request bluetooth device
-        bluetoothDevice = await navigator.bluetooth.requestDevice({
-          filters: [{ services: ['0000ffe0-0000-1000-8000-00805f9b34fb'] }], // Common Arduino service UUID
-          optionalServices: ['0000ffe1-0000-1000-8000-00805f9b34fb']
+        const response = await fetch('/api/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
         });
 
-        // Connect to GATT server
-        const server = await bluetoothDevice.gatt.connect();
-        
-        // Get service
-        const service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
-        
-        // Get characteristic
-        characteristic = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
-        
-        // Start notifications
-        await characteristic.startNotifications();
-        characteristic.addEventListener('characteristicvaluechanged', handleDataReceived);
-        
-        // Update status
-        updateStatus('connected', 'Connected to ' + bluetoothDevice.name);
-        document.getElementById('connectBtn').textContent = 'Disconnect Device';
-        document.getElementById('connectBtn').onclick = disconnectBluetooth;
-        document.getElementById('deviceData').style.display = 'block';
-        
-      } catch (error) {
-        console.error('Bluetooth Error:', error);
-        updateStatus('disconnected', 'Connection failed');
-        alert('Failed to connect: ' + error.message);
-      }
-    }
+        const data = await response.json();
 
-    function disconnectBluetooth() {
-      if (bluetoothDevice && bluetoothDevice.gatt.connected) {
-        bluetoothDevice.gatt.disconnect();
-      }
-      updateStatus('disconnected', 'Disconnected');
-      document.getElementById('connectBtn').textContent = 'Connect Device';
-      document.getElementById('connectBtn').onclick = connectBluetooth;
-      document.getElementById('deviceData').style.display = 'none';
-    }
-
-    function updateStatus(status, text) {
-      const statusDot = document.getElementById('statusIndicator').querySelector('.status-dot');
-      const statusText = document.getElementById('statusText');
-      
-      statusDot.className = 'status-dot ' + status;
-      statusText.textContent = text;
-    }
-
-    function handleDataReceived(event) {
-      const value = new TextDecoder().decode(event.target.value);
-      console.log('Received data:', value);
-      
-      // Expected format: "COLOR:3,FREQ:7,VOL:250"
-      try {
-        const data = parseArduinoData(value);
-        
-        if (data) {
-          // Update display
-          document.getElementById('colorValue').textContent = data.color + '/8';
-          document.getElementById('frequencyValue').textContent = data.frequency + ' times/day';
-          document.getElementById('volumeValue').textContent = data.volume + ' ml';
-          
-          // Analyze hydration
-          analyzeHydration(data.color, data.frequency, data.volume);
+        if (data.success) {
+          window.location.href = data.redirectUrl;
         }
       } catch (error) {
-        console.error('Error parsing data:', error);
+        console.error('Error:', error);
+        window.location.href = '/';
       }
-    }
+    });
+  }
+});
 
-    function parseArduinoData(dataString) {
-      // Parse format: "COLOR:3,FREQ:7,VOL:250" or "3,7,250"
-      const parts = dataString.trim().split(',');
-      
-      if (parts.length === 3) {
-        // Try comma-separated format first
-        const color = parseInt(parts[0].replace(/\D/g, ''));
-        const frequency = parseInt(parts[1].replace(/\D/g, ''));
-        const volume = parseInt(parts[2].replace(/\D/g, ''));
-        
-        if (!isNaN(color) && !isNaN(frequency) && !isNaN(volume)) {
-          return { color, frequency, volume };
-        }
-      }
-      
-      return null;
-    }
-
-    function analyzeHydration(color, frequency, volume) {
-      let score = 0;
-      
-      // Color scoring (inverted - lower is better)
-      if (color <= 2) score += 35;
-      else if (color <= 3) score += 30;
-      else if (color <= 4) score += 20;
-      else if (color <= 6) score += 10;
-      else score += 5;
-
-      // Frequency scoring
-      if (frequency >= 6 && frequency <= 8) score += 35;
-      else if (frequency >= 4 && frequency <= 10) score += 25;
-      else if (frequency >= 2 && frequency <= 12) score += 15;
-      else score += 5;
-
-      // Volume scoring
-      if (volume >= 200 && volume <= 400) score += 30;
-      else if (volume >= 150 && volume <= 450) score += 20;
-      else if (volume >= 100 && volume <= 500) score += 10;
-      else score += 5;
-
-      // Update indicator position
-      const indicator = document.getElementById('indicator');
-      indicator.style.left = score + '%';
-
-      // Determine status
-      let status, message, borderColor;
-      if (score >= 85) {
-        status = '💧 Excellently Hydrated';
-        message = 'Your hydration levels are optimal! Keep up the great work maintaining your fluid intake.';
-        borderColor = '#3b82f6';
-      } else if (score >= 70) {
-        status = '✅ Well Hydrated';
-        message = 'You\'re properly hydrated. Continue drinking water regularly throughout the day.';
-        borderColor = '#22c55e';
-      } else if (score >= 50) {
-        status = '⚠️ Moderately Hydrated';
-        message = 'Your hydration is acceptable but could be improved. Try increasing your water intake.';
-        borderColor = '#fbbf24';
-      } else if (score >= 30) {
-        status = '🚨 Mildly Dehydrated';
-        message = 'You show signs of dehydration. Please increase your fluid intake immediately.';
-        borderColor = '#f97316';
-      } else {
-        status = '❌ Dehydrated';
-        message = 'You are significantly dehydrated. Drink water now and consult a healthcare provider if symptoms persist.';
-        borderColor = '#ef4444';
-      }
-
-      // Display results
-      document.getElementById('statusTitle').textContent = status;
-      document.getElementById('statusMessage').textContent = message;
-      const resultDiv = document.getElementById('result');
-      resultDiv.style.borderLeftColor = borderColor;
-      resultDiv.classList.add('show');
-
-      // Add to history
-      const now = new Date();
-      const timeLabel = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      hydrationHistory.push({ time: timeLabel, score: score });
-      
-      // Keep only last 10 readings
-      if (hydrationHistory.length > 10) {
-        hydrationHistory.shift();
-      }
-
-      // Update chart
-      chart.data.labels = hydrationHistory.map(h => h.time);
-      chart.data.datasets[0].data = hydrationHistory.map(h => h.score);
-      chart.update();
-    }
-
-    // Initialize chart on load
-    window.onload = function() {
-      initChart();
-    };
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  stopTimer();
+  if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+    bluetoothDevice.gatt.disconnect();
+  }
+});
