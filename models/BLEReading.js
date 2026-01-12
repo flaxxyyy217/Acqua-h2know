@@ -1,8 +1,11 @@
 // models/BLEReading.js
+const mongoose = require('mongoose');
 
 /**
  * Stores raw BLE data received from ESP32 via browser
  * This is separate from HydrationTest to keep raw sensor data
+ * 
+ *
  */
 const bleReadingSchema = new mongoose.Schema({
   userId: {
