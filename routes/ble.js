@@ -1,7 +1,7 @@
 // routes/ble.js
 const express = require('express');
 const router = express.Router();
-const bleController = require('../controllers/bleController');
+const bleController = require('../controllers/bleControllers');
 const { authenticateToken } = require('../middleware/auth');
 const { validateBLEData, validateSession } = require('../middleware/validation');
 const { bleRateLimiter } = require('../middleware/ratelimiter');
