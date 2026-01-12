@@ -3,9 +3,9 @@
 // ============================================
 
 const BLUETOOTH_CONFIG = {
-  SERVICE_UUID: '4FAFC201-1FB5-459E-8FCC-C5C9C331914B',
-  CHARACTERISTIC_UUID: 'BEB5483E-36E1-4688-B7F5-EA07361B26A8',
-  DEVICE_NAME_PREFIX: 'Acqua' // Changed from 'ESP32' to 'Acqua' to match Arduino
+  SERVICE_UUID: '4fafc201-1Fb5-459e-8fcc-c5c9c331914b',
+  CHARACTERISTIC_UUID: 'beb5483e-36e1-4688-b7f5-ea07361b26a8',
+  DEVICE_NAME_PREFIX: 'Acqua_ESP32' 
 };
 
 let bluetoothDevice = null;
