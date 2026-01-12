@@ -160,6 +160,39 @@ const feedbackSchema = new mongoose.Schema({
 
 const Feedback = mongoose.model('Feedback', feedbackSchema);
 
+// Device Schema
+const deviceSchema = new mongoose.Schema({
+  deviceToken: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
+  deviceName: {
+    type: String,
+    required: true
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  lastConnection: {
+    type: Date,
+    default: Date.now
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const Device = mongoose.model('Device', deviceSchema);
+
 // EMAIL CONFIGURATION (Single transporter)
 const transporter = nodemailer.createTransport({
   service: process.env.EMAIL_SERVICE || 'gmail',
@@ -823,6 +856,16 @@ app.get('/admin', authenticateToken, async (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+// Admin Feedback Route (Protected)
+app.get('/feedback', authenticateToken, async (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'feedback.html'));
+});
+
+// Admin Devices Route (Protected)
+app.get('/devices', authenticateToken, async (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'devices.html'));
+});
+
 // Get all users with their data (Admin API)
 app.get('/api/admin/users', authenticateToken, async (req, res) => {
   try {
@@ -1202,6 +1245,278 @@ app.post('/api/hydration/rating', authenticateToken, async (req, res) => {
 // 404 Handler
 app.use((req, res) => {
   res.status(404).send('Page not found');
+});
+
+// ============================================
+// ESP32 DEVICE API ENDPOINTS
+// ============================================
+
+// Device authentication middleware
+const authenticateDevice = async (req, res, next) => {
+  try {
+    const { deviceToken } = req.body;
+    
+    if (!deviceToken) {
+      return res.status(401).json({
+        success: false,
+        message: 'Device token required'
+      });
+    }
+    
+    const device = await Device.findOne({ deviceToken, isActive: true });
+    
+    if (!device) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or inactive device token'
+      });
+    }
+    
+    // Update last connection time
+    device.lastConnection = new Date();
+    await device.save();
+    
+    req.device = device;
+    next();
+  } catch (error) {
+    console.error('Device authentication error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Authentication error'
+    });
+  }
+};
+
+// ESP32 endpoint to receive test data
+app.post('/api/device/test', authenticateDevice, async (req, res) => {
+  try {
+    const { sensorReading, volume, hydrationLevel, timestamp } = req.body;
+    const device = req.device;
+    
+    console.log(`📡 Data received from device: ${device.deviceName}`);
+    console.log(`   Sensor: ${sensorReading}, Volume: ${volume}ml, Level: ${hydrationLevel}`);
+    
+    // Validate required fields
+    if (!sensorReading || !hydrationLevel) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sensor reading and hydration level required'
+      });
+    }
+    
+    // Check if device is linked to a user
+    if (!device.userId) {
+      console.log('⚠️  Device not linked to user - storing in pending tests');
+      return res.json({
+        success: true,
+        message: 'Data received but device not linked to user',
+        requiresUserLink: true
+      });
+    }
+    
+    // Get user info
+    const user = await User.findById(device.userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Check if this is the user's first test
+    const isFirstTest = !user.firstTestCompleted;
+    
+    // Create hydration test record
+    const newTest = new HydrationTest({
+      userId: user._id,
+      hydrationLevel: hydrationLevel,
+      sensorReading: sensorReading,
+      notes: `Volume: ${volume}ml - Submitted via Device: ${device.deviceName}`,
+      isFirstTest: isFirstTest
+    });
+    
+    await newTest.save();
+    
+    // Update user if this is their first test
+    if (isFirstTest) {
+      const accountAge = (Date.now() - user.createdAt.getTime()) / 1000; // seconds
+      user.firstTestCompleted = true;
+      user.timeToFirstTest = Math.round(accountAge);
+      user.firstTestDate = new Date();
+      await user.save();
+      
+      console.log(`✅ First test completed for ${user.email} via device`);
+    }
+    
+    // Send post-test survey email
+    sendPostTestSurveyEmail(user, newTest);
+    
+    console.log(`✅ Test saved for user: ${user.email}`);
+    
+    res.json({
+      success: true,
+      message: 'Test data received and saved',
+      testId: newTest._id,
+      userName: user.fullName,
+      isFirstTest: isFirstTest
+    });
+    
+  } catch (error) {
+    console.error('Error processing device test data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process test data'
+    });
+  }
+});
+
+// Register new device (Admin only)
+app.post('/api/admin/device/register', authenticateToken, async (req, res) => {
+  try {
+    const { deviceName, userId } = req.body;
+    
+    if (!deviceName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Device name required'
+      });
+    }
+    
+    // Generate unique device token
+    const deviceToken = 'DEV_' + Math.random().toString(36).substring(2, 15) + 
+                        Math.random().toString(36).substring(2, 15);
+    
+    const newDevice = new Device({
+      deviceToken: deviceToken,
+      deviceName: deviceName,
+      userId: userId || null,
+      isActive: true
+    });
+    
+    await newDevice.save();
+    
+    console.log(`✅ New device registered: ${deviceName}`);
+    
+    res.json({
+      success: true,
+      message: 'Device registered successfully',
+      device: {
+        deviceToken: deviceToken,
+        deviceName: deviceName,
+        deviceId: newDevice._id
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error registering device:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to register device'
+    });
+  }
+});
+
+// Link device to user (Admin only)
+app.post('/api/admin/device/link', authenticateToken, async (req, res) => {
+  try {
+    const { deviceId, userId } = req.body;
+    
+    if (!deviceId || !userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Device ID and User ID required'
+      });
+    }
+    
+    const device = await Device.findById(deviceId);
+    const user = await User.findById(userId);
+    
+    if (!device || !user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Device or user not found'
+      });
+    }
+    
+    device.userId = userId;
+    await device.save();
+    
+    console.log(`✅ Device ${device.deviceName} linked to ${user.email}`);
+    
+    res.json({
+      success: true,
+      message: `Device linked to ${user.fullName}`,
+      device: {
+        deviceName: device.deviceName,
+        userName: user.fullName,
+        userEmail: user.email
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error linking device:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to link device'
+    });
+  }
+});
+
+// Get all devices (Admin only)
+app.get('/api/admin/devices', authenticateToken, async (req, res) => {
+  try {
+    const devices = await Device.find()
+      .populate('userId', 'fullName email')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    res.json({
+      success: true,
+      devices: devices,
+      count: devices.length
+    });
+    
+  } catch (error) {
+    console.error('Error fetching devices:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch devices'
+    });
+  }
+});
+
+// Deactivate device (Admin only)
+app.post('/api/admin/device/deactivate', authenticateToken, async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+    
+    const device = await Device.findById(deviceId);
+    
+    if (!device) {
+      return res.status(404).json({
+        success: false,
+        message: 'Device not found'
+      });
+    }
+    
+    device.isActive = false;
+    await device.save();
+    
+    console.log(`✅ Device deactivated: ${device.deviceName}`);
+    
+    res.json({
+      success: true,
+      message: 'Device deactivated successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error deactivating device:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to deactivate device'
+    });
+  }
 });
 
 // START SERVER (Only once!)
