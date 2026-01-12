@@ -1,11 +1,11 @@
 // ============================================
-// BLUETOOTH CONFIGURATION
+// BLUETOOTH CONFIGURATION (UPPERCASE UUIDs for compatibility)
 // ============================================
 
 const BLUETOOTH_CONFIG = {
   SERVICE_UUID: '4FAFC201-1FB5-459E-8FCC-C5C9C331914B',
   CHARACTERISTIC_UUID: 'BEB5483E-36E1-4688-B7F5-EA07361B26A8',
-  DEVICE_NAME_PREFIX: 'ESP32'
+  DEVICE_NAME_PREFIX: 'Acqua' // Changed from 'ESP32' to 'Acqua' to match Arduino
 };
 
 let bluetoothDevice = null;
@@ -14,9 +14,20 @@ let lastTestId = null;
 let timerStartTime = null;
 let timerInterval = null;
 let selectedRating = 0;
+let dataBuffer = '';
+
+// ✅ Connection timeout wrapper
+const connectWithTimeout = (promise, ms) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Connection timeout')), ms)
+    )
+  ]);
+};
 
 // ============================================
-// TIMER FUNCTIONS (for first test tracking)
+// TIMER FUNCTIONS
 // ============================================
 
 async function checkTimerStatus() {
@@ -75,16 +86,16 @@ function getElapsedTime() {
 }
 
 // ============================================
-// BLUETOOTH CONNECTION FUNCTIONS
+// BLUETOOTH CONNECTION
 // ============================================
 
 async function connectBluetooth() {
   try {
     console.log('🔵 Requesting Bluetooth device...');
-    updateStatus('connecting', 'Searching for ESP32...');
+    updateStatus('connecting', 'Searching for Acqua device...');
 
     if (!navigator.bluetooth) {
-      alert('❌ Web Bluetooth is not supported in this browser. Please use Chrome, Edge, or Opera.');
+      alert('❌ Web Bluetooth not supported. Please use Chrome, Edge, or Opera.');
       updateStatus('disconnected', 'Bluetooth not supported');
       return;
     }
@@ -101,7 +112,10 @@ async function connectBluetooth() {
 
     bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
 
-    const server = await bluetoothDevice.gatt.connect();
+    const server = await connectWithTimeout(
+      bluetoothDevice.gatt.connect(),
+      10000
+    );
     console.log('✅ Connected to GATT server');
 
     const service = await server.getPrimaryService(BLUETOOTH_CONFIG.SERVICE_UUID);
@@ -125,14 +139,16 @@ async function connectBluetooth() {
     
     let errorMessage = 'Connection failed';
     if (error.name === 'NotFoundError') {
-      errorMessage = 'No ESP32 device found';
+      errorMessage = 'No Acqua device found';
     } else if (error.name === 'SecurityError') {
       errorMessage = 'Bluetooth access denied';
+    } else if (error.message === 'Connection timeout') {
+      errorMessage = 'Connection timeout - device not responding';
     } else if (error.message) {
       errorMessage = error.message;
     }
 
-    alert(`❌ ${errorMessage}\n\nMake sure:\n• ESP32 is powered on\n• Bluetooth is enabled\n• You're using Chrome/Edge`);
+    alert(`❌ ${errorMessage}\n\nMake sure:\n• Arduino is powered on\n• Bluetooth is enabled\n• You're using Chrome/Edge\n• Device is within 2 meters`);
     updateStatus('disconnected', errorMessage);
   }
 }
@@ -151,8 +167,6 @@ function onDisconnected() {
   alert('⚠️ Device disconnected. Please reconnect to continue testing.');
 }
 
-
-
 function resetBluetoothUI() {
   updateStatus('disconnected', 'Disconnected');
   document.getElementById('deviceData').style.display = 'none';
@@ -165,6 +179,7 @@ function resetBluetoothUI() {
   
   bluetoothDevice = null;
   bluetoothCharacteristic = null;
+  dataBuffer = '';
 }
 
 function updateStatus(status, message) {
@@ -175,85 +190,108 @@ function updateStatus(status, message) {
   statusText.textContent = message;
 }
 
-const DEBUG = true;
-if (DEBUG) {
-  console.log('Raw BLE data:', decoder.decode(value));
-  console.log('Buffer state:', dataBuffer);
-}
-
 // ============================================
-// DATA HANDLING
+// DATA HANDLING (ADAPTED FOR ARDUINO FORMAT)
 // ============================================
 
-async function handleDataReceived(event) {
+function handleDataReceived(event) {
   try {
     const value = event.target.value;
     const decoder = new TextDecoder('utf-8');
-    let dataBuffer = '';
-    function handleDataReceived(event) {
-    const value = event.target.value;
-    const decoder = new TextDecoder('utf-8');
-    dataBuffer += decoder.decode(value);
-
-    const lastDataTime = Date.now();
-setInterval(() => {
-  if (Date.now() - lastDataTime > 5000) {
-    updateStatus('warning', 'No data for 5 seconds');
-  }
-}, 1000);
-  
-  // Try to parse when we have complete JSON
-  if (dataBuffer.includes('}')) {
-    try {
-      const data = JSON.parse(dataBuffer);
-      processData(data);
-      dataBuffer = ''; // Clear buffer
-    } catch (e) {
-      // Wait for more data
+    const chunk = decoder.decode(value);
+    
+    dataBuffer += chunk;
+    
+    console.log('📥 Raw BLE chunk:', chunk);
+    console.log('📦 Current buffer:', dataBuffer);
+    
+    // Arduino sends: {"color":"Light Yellow","r":255,"g":255,"b":200,"sg":"1.020","ph":"6.5","status":"Normal"}
+    if (dataBuffer.includes('}')) {
+      try {
+        const data = JSON.parse(dataBuffer);
+        console.log('✅ Parsed Arduino data:', data);
+        
+        // ✅ CONVERT Arduino data format to website format
+        const convertedData = convertArduinoData(data);
+        
+        processData(convertedData);
+        dataBuffer = '';
+        
+      } catch (parseError) {
+        console.log('⏳ Waiting for more data... (incomplete JSON)');
+      }
     }
+  } catch (error) {
+    console.error('Error in handleDataReceived:', error);
+    dataBuffer = '';
   }
 }
 
-// Add timeout
-const connectWithTimeout = (promise, ms) => {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Connection timeout')), ms)
-    )
-  ]);
-};
+// ✅ NEW: Convert Arduino data format to website format
+function convertArduinoData(arduinoData) {
+  // Arduino sends: color (string), r, g, b, sg, ph, status
+  // Website needs: color (0-1023), frequency, volume
+  
+  // Convert RGB to single sensor reading (0-1023)
+  // Using average brightness as color intensity
+  const r = parseInt(arduinoData.r) || 0;
+  const g = parseInt(arduinoData.g) || 0;
+  const b = parseInt(arduinoData.b) || 0;
+  
+  // Calculate brightness (0-255) and map to 0-1023
+  const brightness = (r + g + b) / 3;
+  const colorValue = Math.round((brightness / 255) * 1023);
+  
+  // Map specific gravity to frequency (estimated)
+  // Normal SG: 1.010-1.030, lower = more hydrated = less frequent
+  const sg = parseFloat(arduinoData.sg) || 1.020;
+  const frequency = Math.round(((sg - 1.010) / 0.020) * 8); // 0-8 range
+  
+  // Map pH to volume (estimated)
+  // Normal pH: 5.5-7.0, higher = better hydration = more volume
+  const ph = parseFloat(arduinoData.ph) || 6.5;
+  const volume = Math.round(((ph - 5.5) / 1.5) * 300); // 0-300ml range
+  
+  console.log('🔄 Converted data:', {
+    original: arduinoData,
+    converted: { color: colorValue, frequency, volume }
+  });
+  
+  return {
+    color: colorValue,
+    frequency: frequency,
+    volume: volume,
+    // Keep original data for reference
+    originalColor: arduinoData.color,
+    sg: arduinoData.sg,
+    ph: arduinoData.ph,
+    status: arduinoData.status
+  };
+}
 
-// Usage
-const server = await connectWithTimeout(
-  bluetoothDevice.gatt.connect(),
-  10000 // 10 second timeout
-);
+function processData(data) {
+  // Display converted values
+  document.getElementById('colorValue').textContent = `${data.color} (${data.originalColor || 'N/A'})`;
+  document.getElementById('frequencyValue').textContent = (data.frequency || '--') + ' times/day';
+  document.getElementById('volumeValue').textContent = (data.volume || '--') + ' ml';
 
-    document.getElementById('colorValue').textContent = data.color || '--';
-    document.getElementById('frequencyValue').textContent = (data.frequency || '--') + ' times/day';
-    document.getElementById('volumeValue').textContent = (data.volume || '--') + ' ml';
-
-    const hydrationLevel = calculateHydrationLevel(data.color, data.frequency, data.volume);
-    updateHydrationMeter(hydrationLevel);
-    saveTestResult(data.color, data.frequency, data.volume, hydrationLevel);
-
-  } catch (error) {
-    console.error('Error parsing data:', error);
-  }
+  const hydrationLevel = calculateHydrationLevel(data.color, data.frequency, data.volume);
+  updateHydrationMeter(hydrationLevel);
+  saveTestResult(data.color, data.frequency, data.volume, hydrationLevel);
 }
 
 function calculateHydrationLevel(color, frequency, volume) {
   let level = '';
   let percentage = 0;
 
-  if (color < 200) {
+  // Lower color value = lighter urine = better hydration
+  if (color < 256) {
     level = 'Well Hydrated';
     percentage = 90;
-  } else if (color < 400) {
+  } else if (color < 512) {
     level = 'Slightly Dehydrated';
     percentage = 60;
-  } else if (color < 600) {
+  } else if (color < 768) {
     level = 'Dehydrated';
     percentage = 30;
   } else {
@@ -271,7 +309,6 @@ function updateHydrationMeter(data) {
   const statusMessage = document.getElementById('statusMessage');
 
   indicator.style.left = data.percentage + '%';
-
   statusTitle.textContent = data.level;
 
   const messages = {
@@ -282,13 +319,12 @@ function updateHydrationMeter(data) {
   };
 
   statusMessage.textContent = messages[data.level] || 'Test complete';
-
   result.className = 'result-display show';
   showRatingSystem(data.level);
 }
 
 // ============================================
-// SAVE TEST RESULT TO DATABASE
+// SAVE TEST RESULT
 // ============================================
 
 async function saveTestResult(sensorReading, frequency, volume, hydrationData) {
@@ -514,7 +550,7 @@ function showMessage(message, type = 'info') {
 }
 
 // ============================================
-// LOGOUT FUNCTION
+// LOGOUT
 // ============================================
 
 document.getElementById('logout')?.addEventListener('click', async (e) => {
@@ -538,7 +574,7 @@ document.getElementById('logout')?.addEventListener('click', async (e) => {
 });
 
 // ============================================
-// INITIALIZE ON PAGE LOAD
+// INITIALIZE
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
