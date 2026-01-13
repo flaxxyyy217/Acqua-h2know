@@ -3,7 +3,7 @@ const BLESession = require('../models/BLESession');
 const BLEReading = require('../models/BLEReading');
 const HydrationTest = require('../models/HydrationTest');
 const User = require('../models/user');
-const { convertArduinoData, calculateHydrationLevel } = require('../services/bleDataService');
+const { convertArduinoData, calculateHydrationLevel } = require('../sevices/bleDataService');
 
 /**
  * START BLE SESSION
