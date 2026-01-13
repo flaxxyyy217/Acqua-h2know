@@ -740,6 +740,35 @@ header {
   transform: translateY(-2px);
 }
 
+.dropdown:hover .dropdown-content,
+.dropdown[open] .dropdown-content,
+.dropdown:focus-within .dropdown-content {
+  display: block;
+  animation: slideDown 0.18s ease;
+}
+
+/* Hide native disclosure marker and ensure summary behaves like a button */
+.dropdown-button {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+.dropdown-button::-webkit-details-marker { display: none; }
+.dropdown-button::marker { display: none; }
+
+/* Ensure summary has button semantics visually */
+.dropdown summary { list-style: none; }
+.dropdown summary:focus { outline: none; }
+
+
+/* Allow dropdown to stay open when focused or toggled via JS */
+.dropdown:focus-within .dropdown-content,
+.dropdown.open .dropdown-content {
+  display: block;
+  animation: slideDown 0.18s ease;
+}
+
 /* Custom Scrollbar */
 .privacy-popup::-webkit-scrollbar {
   width: 8px;

@@ -227,6 +227,166 @@ function resetBluetoothUI() {
 }
 
 // ============================================
+// TESTING FLOW (SIMULATED FOR DEMO)
+// ============================================
+
+/**
+ * 
+ * This is a test function for timer implementation.
+ * In real scenario, the user would start the test after connecting
+ * to the BLE device and receiving data from it.
+ * 
+ * Then the timer should measure the duration from start to receiving
+ * the complete data and displaying results.
+ * 
+ * ONLY TEMPORARY, REPLACE WITH REAL TEST FLOW LATER
+ */
+
+function startTest() {
+  const startTime = performance.now(); // START TIMER
+
+  const btn = document.getElementById('startTestButton');
+  if (!btn) return;
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = 'Testing...';
+
+  showMessage('🔬 Test started', 'info');
+
+  setTimeout(async () => {
+    const arduino = simulateArduinoData();
+    const converted = clientConvertArduinoData(arduino);
+    const analysis = clientCalculateHydrationLevel(
+      converted.color,
+      converted.frequency,
+      converted.volume
+    );
+
+    const reading = {
+      id: 'sim_' + Date.now(),
+      hydrationLevel: analysis.level,
+      percentage: analysis.percentage,
+      timestamp: new Date().toISOString(),
+      metrics: analysis.metrics
+    };
+
+    // Update UI
+    document.getElementById('colorValue').textContent =
+      converted.originalColor || converted.color;
+    document.getElementById('frequencyValue').textContent =
+      converted.frequency + ' times/day';
+    document.getElementById('volumeValue').textContent =
+      converted.volume + ' ml';
+
+    await displayResults(reading);
+    await showRatingSystem(analysis.level);
+    await showMessage('✅ Test complete', 'success');
+
+    //TIMER
+    const ms = Math.floor(Math.random() * 2000) + 500; // This simulates 0.5-2.5s processing delay
+    await new Promise(resolve => setTimeout(resolve, ms)); // Simulated processing delay
+    const endTime = performance.now();
+    const totalTime = ((endTime - startTime) / 1000).toFixed(2); // totalTime in seconds and can be used as needed
+
+    console.log(`🕒 Test duration: ${totalTime} seconds`); // Open console by Ctrl+Shift+I or Cmd+Opt+I
+    alert(`Test completed in ${totalTime} seconds`); // Don't use alert in production.
+
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }, 1800);
+}
+
+
+/* -------------------------
+   Client-side helpers
+   ------------------------- */
+
+function simulateArduinoData() {
+  // Random RGB
+  const r = Math.floor(Math.random() * 256);
+  const g = Math.floor(Math.random() * 256);
+  const b = Math.floor(Math.random() * 256);
+  // SG between 1.010 and 1.030
+  const sg = (1.010 + Math.random() * 0.020).toFixed(3);
+  // pH between 5.5 and 7.0
+  const ph = (5.5 + Math.random() * 1.5).toFixed(2);
+
+  // Derive a simple color name from brightness for display
+  const brightness = Math.round((r + g + b) / 3);
+  const colorName = brightness < 85 ? 'Dark' : brightness < 170 ? 'Light' : 'Very Light';
+
+  return {
+    color: colorName,
+    r,
+    g,
+    b,
+    sg,
+    ph,
+    status: 'Simulated'
+  };
+}
+
+function clientConvertArduinoData(arduinoData) {
+  const r = parseInt(arduinoData.r) || 0;
+  const g = parseInt(arduinoData.g) || 0;
+  const b = parseInt(arduinoData.b) || 0;
+  const brightness = (r + g + b) / 3;
+  const colorValue = Math.round((brightness / 255) * 1023);
+
+  const sg = parseFloat(arduinoData.sg) || 1.020;
+  const sgNormalized = Math.max(0, Math.min(1, (sg - 1.010) / 0.020));
+  const frequency = Math.round(sgNormalized * 8);
+
+  const ph = parseFloat(arduinoData.ph) || 6.5;
+  const phNormalized = Math.max(0, Math.min(1, (ph - 5.5) / 1.5));
+  const volume = Math.round(phNormalized * 300);
+
+  return {
+    color: colorValue,
+    frequency,
+    volume,
+    originalColor: arduinoData.color
+  };
+}
+
+function clientCalculateHydrationLevel(color, frequency, volume) {
+  let level = '';
+  let percentage = 0;
+
+  if (color < 256) {
+    level = 'Well Hydrated';
+    percentage = 90;
+  } else if (color < 512) {
+    level = 'Slightly Dehydrated';
+    percentage = 60;
+  } else if (color < 768) {
+    level = 'Dehydrated';
+    percentage = 30;
+  } else {
+    level = 'Severely Dehydrated';
+    percentage = 10;
+  }
+
+  if (frequency > 6) {
+    percentage = Math.max(percentage - 10, 10);
+  } else if (frequency < 3) {
+    percentage = Math.min(percentage + 10, 100);
+  }
+
+  return {
+    level,
+    percentage,
+    advice: '',
+    metrics: { color, frequency, volume }
+  };
+}
+
+// Hook button to startTest so behavior matches real test flow
+const _startBtn = document.getElementById('startTestButton');
+if (_startBtn) _startBtn.addEventListener('click', startTest);
+
+// ============================================
 // DATA HANDLING - SEND TO BACKEND
 // ============================================
 
