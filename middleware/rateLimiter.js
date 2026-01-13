@@ -1,5 +1,5 @@
 // middleware/rateLimiter.js
-const rateLimit = require('./middleware/ratelimiter');
+const rateLimit = require('./middleware/rateLimiter');
 
 /**
  * Rate limiter specifically for BLE endpoints

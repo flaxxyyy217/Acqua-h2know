@@ -4,7 +4,7 @@ const router = express.Router();
 const bleController = require('../controllers/bleControllers');
 const { authenticateToken } = require('../middleware/auth');
 const { validateBLEData, validateSession } = require('../middleware/validation');
-const { bleRateLimiter } = require('../middleware/ratelimiter');
+const { bleRateLimiter } = require('../middleware/rateLimiter');
 
 /**
  * BLE Session Management Routes
