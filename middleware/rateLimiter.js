@@ -1,5 +1,5 @@
 // middleware/rateLimiter.js
-const rateLimit = require('express-rate-limit');
+const rateLimit = require('../middleware/rateLimiter');
 
 /**
  * Rate limiter specifically for BLE endpoints
@@ -36,3 +36,5 @@ exports.sessionRateLimiter = rateLimit({
   },
   keyGenerator: (req) => req.user?.id || req.ip
 });
+
+const connection = require ('./connectionState');
