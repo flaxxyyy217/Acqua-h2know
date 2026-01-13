@@ -30,8 +30,7 @@ async function connectBluetooth() {
 
     // Step 1: Request BLE device from browser
     bluetoothDevice = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      //filters: [{ namePrefix: BLUETOOTH_CONFIG.DEVICE_NAME_PREFIX }],
+      filters: [{ namePrefix: BLUETOOTH_CONFIG.DEVICE_NAME_PREFIX }],
       optionalServices: [BLUETOOTH_CONFIG.SERVICE_UUID]
     });
 
